@@ -4,6 +4,9 @@ from pymongo import MongoClient
 from pprint import pprint
 
 class Document():
+    """
+    Class generating documewnt which be adding to DB
+    """
     
     def __init__(self, kolekcja=''):
         
@@ -26,7 +29,7 @@ class Document():
                 
                     self.pola[i] = a
             
-        a = self.czy_wyjsc()
+        a = self._czy_wyjsc()
         
         if a:
         
@@ -83,14 +86,20 @@ class Document():
                 
                 self.pola = pola
         
-        self.print_values()
+        self.print_document()
         
-    def print_values(self):
-        
+    def print_document(self):
+        """Method printing document
+        """
         pprint(self.pola)
         
-    def czy_wyjsc(self):
-        
+    def _czy_wyjsc(self):
+        """Method asking user if he added everything what he wanted
+        Returns
+        -------
+        int
+            Flag control exit from loop in constructor
+        """
         r = input("Czy to już wszystko (y/n)? ")
         
         if r == 'y':
@@ -107,7 +116,22 @@ class Document():
             self.czy_wyjsc()
 
     def _klucze(self, collection, db='hodowla', uri="mongodb://localhost:27017/"):
-        
+        """Method downloading keys existance in collection to which user trying add document.
+
+        Parameters
+        ----------
+        collection : str
+            Collection's name
+        db : str, optional
+            Database's name, by default 'hodowla'
+        uri : str, optional
+            Uri to mongo base, by default "mongodb://localhost:27017/"
+
+        Returns
+        -------
+        set
+            Set of keys using in collection
+        """
         if collection == '':
             
             return []
@@ -127,15 +151,11 @@ class Document():
     
     
 class Owad(Document):
-    
+    """A class inheriting from the Document class that creates a document that will represent the insect in the database
+    """
     def __init__(self):
         
         super().__init__(kolekcja="Owady")
-        
-        
-    def czy_wyjsc(self):
-        
-        return super().czy_wyjsc()
     
     def print_values(self):
         
@@ -143,16 +163,12 @@ class Owad(Document):
     
     
 class Pajeczak(Document):
-    
+    """A class inheriting from the Document class that creates a document that will represent the arachnid in the database
+    """
     def __init__(self):
         
         super().__init__(kolekcja="Pajęczaki")
         
-        
-    def czy_wyjsc(self):
-        
-        return super().czy_wyjsc()
-    
     def print_values(self):
         
         return super().print_values()   
