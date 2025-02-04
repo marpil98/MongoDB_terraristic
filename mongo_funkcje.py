@@ -5,8 +5,24 @@ from pprint import pprint
 from documents import Document, Owad, Pajeczak
 
 
-def creating_collection(collection_name, db_name="hodowla", uri="mongodb://localhost:27017/"):
-    
+def creating_collection(collection_name:str, db_name:str="hodowla", uri:str="mongodb://localhost:27017/"):
+    """Creating collection in existance db
+
+
+    Parameters
+    ----------
+    collection_name : str
+        New collection's name
+    db_name : str, optional
+        Dtabase's name, where will be created new collection, by default "hodowla"
+    uri : _type_, optional
+        uri to mongo server, by default "mongodb://localhost:27017/"
+
+    Raises
+    ------
+    Exception
+        Alternative error info
+    """
     try:
     
         with MongoClient(uri) as client:
@@ -14,15 +30,15 @@ def creating_collection(collection_name, db_name="hodowla", uri="mongodb://local
             database = client[db_name]
             database.create_collection(name=collection_name)
             
-            print(f'The "{collection_name}" collection was created in data base "{db_name}"')
+            print(f'Kolekcja "{collection_name}" została utworzona w bazie "{db_name}"')
         
         
-        print('Connection closed')
+        print('Zamknięto połączenie')
         
     except Exception as e:
         
         raise Exception(
-            f"The exception occured: {e}"
+            f"Pojawił się wyjątek: {e}"
         )
 
 
