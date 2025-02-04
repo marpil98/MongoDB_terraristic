@@ -103,11 +103,29 @@ def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost
             
             
 def prepare_new_docs():
-    
+    """Preparing new documents, which will added to db
+
+    Returns
+    -------
+    Document
+        Object from class document, whch will be added to db
+    """
     a = input("Czesc, podaj, jaki typ zwierzaka się pojawił w hodowli (pajeczak/owad/inny): ")
     
     def _transforming_input(inp):
-        
+        """Helping function which transform input to knowing form, or force the user to 
+        give corect name of collection
+
+        Parameters
+        ----------
+        inp : str
+            Name of collection
+
+        Returns
+        -------
+        str
+            "Normalized" name
+        """
         inp = inp.lower().replace('ą','a').replace('ę','e')
         
         if inp == 'inne':
@@ -130,8 +148,8 @@ def prepare_new_docs():
             
         else:
             
-            print("Nie rozpoznano patternu.")
-            inp = input("Podaj go jeszcze raz: ")
+            print("Nie rozpoznano kolekcji.")
+            inp = input("Podaj ją jeszcze raz: ")
             inp =_transforming_input(inp)
             
             
@@ -182,6 +200,17 @@ def prepare_new_docs():
    
                 
 def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
+    """Adding new documents to collection
+
+    Parameters
+    ----------
+    docs : list
+        List of documents
+    db : str, optional
+        DB name, by default 'hodowla'
+    uri : str, optional
+        URI to mongo, by default "mongodb://localhost:27017/"
+    """
     
     with MongoClient(uri) as client:
         
