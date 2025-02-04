@@ -43,13 +43,63 @@ def creating_collection(collection_name:str, db_name:str="hodowla", uri:str="mon
 
 
 def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost:27017/"):
+    """Dropping existance colletion
+
+    Parameters
+    ----------
+    collection_name : str
+        Collection's name which user want to drop
+    db_name : str, optional
+        Name of db where should be collection to drop, by default "hodowla"
+    uri : str, optional
+        URI to mongo, by default "mongodb://localhost:27017/"
+    """
+    print("dropping")
+    success = 1
     
     with MongoClient(uri) as client:
                 
             database = client[db_name]
-            database.drop_collection(name=collection_name)
+            names = database.list_collection_names()
             
-            print(f'The "{collection_name}" was dropped from data base "{db_name}"')
+            if collection_name in names:
+                
+                database.drop_collection(name=collection_name)
+                print(f"Poprawnie usunięto kolekcję '{collection_name}'")
+                
+            else:
+                
+                success = 0
+                
+    if not success:
+        
+        def _exit():
+            
+            print(f"Nie odnaleziono podanej kolekcji. Czy miałeś na myśli którąś z wymienionych: {names}")
+            return input("Jeśli tak, podaj poprawną nazwę. W innym, wpisz 'q': ")
+        
+        exit = _exit()
+        check_name = lambda x: x in names
+        
+        print(exit)
+        
+        match exit:
+            
+            case 'q':
+                
+                print("Do widzenia")
+                
+            case exit if check_name(exit):
+                
+                drop_collection(exit)
+                
+            case _:
+                
+                _exit()
+                
+                
+        
+            
             
             
 def prepare_new_docs():
@@ -192,13 +242,3 @@ def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
                         
                         print("Brak innych dokumentów do dodania")
                     
-docs = prepare_new_docs()
-
-try:
-    
-    add_docs_to_db(docs)
-    
-except Exception as e:
-    
-    print("Coś poszło nie tak")
-    print(f"Błąd: {e}")
