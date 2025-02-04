@@ -1,14 +1,18 @@
-from nltk.metrics.distance import edit_distance
+from pprint import pprint
+
 import pymongo
 from pymongo import MongoClient
-from pprint import pprint
+from pymongo.errors import CollectionInvalid
+from nltk.metrics.distance import edit_distance
+
 from documents import Document, Owad, Pajeczak
 
 
-def creating_collection(collection_name:str, db_name:str="hodowla", uri:str="mongodb://localhost:27017/"):
+def creating_collection(db_name:str="hodowla", uri:str="mongodb://localhost:27017/"):
+    
     """Creating collection in existance db
-
-
+    
+    
     Parameters
     ----------
     collection_name : str
@@ -23,17 +27,50 @@ def creating_collection(collection_name:str, db_name:str="hodowla", uri:str="mon
     Exception
         Alternative error info
     """
+    print(__name__)
     try:
-    
+        collection_name = input("Podaj nazwę nowej kolekcji")
+        
         with MongoClient(uri) as client:
                 
             database = client[db_name]
+            names = database.list_collection_names()
             database.create_collection(name=collection_name)
-            
             print(f'Kolekcja "{collection_name}" została utworzona w bazie "{db_name}"')
         
         
         print('Zamknięto połączenie')
+        
+    
+    except CollectionInvalid:
+        
+        print(names)
+        
+        if collection_name in names:
+            
+            def _exit(message="Kolekcja o podanejnazwi już istnieje."):
+                
+                print(message)
+                new = input("Czy chcesz podać nazwę nowej kolekcji? (y/n)")
+            
+                if new == 'y':
+                    
+                    creating_collection()
+                    
+                elif new =='n':
+                    
+                    print("Do widzenia")
+                    
+                else:
+                    
+                    _exit("Nie rozpoznano polecenia")
+        
+            _exit()
+        
+        else:
+            
+            raise
+                
         
     except Exception as e:
         
@@ -43,6 +80,7 @@ def creating_collection(collection_name:str, db_name:str="hodowla", uri:str="mon
 
 
 def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost:27017/"):
+    
     """Dropping existance colletion
 
     Parameters
@@ -54,6 +92,7 @@ def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost
     uri : str, optional
         URI to mongo, by default "mongodb://localhost:27017/"
     """
+    
     print("dropping")
     success = 1
     
@@ -64,7 +103,7 @@ def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost
             
             if collection_name in names:
                 
-                database.drop_collection(name=collection_name)
+                database.drop_collection(collection_name)
                 print(f"Poprawnie usunięto kolekcję '{collection_name}'")
                 
             else:
@@ -103,6 +142,7 @@ def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost
             
             
 def prepare_new_docs():
+    
     """Preparing new documents, which will added to db
 
     Returns
@@ -110,9 +150,11 @@ def prepare_new_docs():
     Document
         Object from class document, whch will be added to db
     """
+    
     a = input("Czesc, podaj, jaki typ zwierzaka się pojawił w hodowli (pajeczak/owad/inny): ")
     
     def _transforming_input(inp):
+        
         """Helping function which transform input to knowing form, or force the user to 
         give corect name of collection
 
@@ -126,6 +168,7 @@ def prepare_new_docs():
         str
             "Normalized" name
         """
+        
         inp = inp.lower().replace('ą','a').replace('ę','e')
         
         if inp == 'inne':
@@ -200,6 +243,7 @@ def prepare_new_docs():
    
                 
 def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
+    
     """Adding new documents to collection
 
     Parameters
@@ -270,4 +314,64 @@ def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
                     else:
                         
                         print("Brak innych dokumentów do dodania")
-                    
+                        
+                        
+def colections_names(db):
+    
+    pprint(db.list_collection_names())
+ 
+    
+def find(db='hodowla', uri="mongodb://localhost:27017/"):
+    
+    print("Wybierz nazwę kolekcji z podanych poniżej: ")
+    
+    with MongoClient(uri) as client:
+        
+        db = client[db]
+        colections_names(db)
+        col = input()
+        collection = db[col]
+        
+        query = eval(input("Podaj query wyszukiwania: "))
+        
+        result = collection.find(query)
+        
+        for f in result:  
+            
+            pprint(f)
+        
+        
+def choose_action():
+    
+    
+        action = input(
+            "1 - Wyszukiwanie.\n \
+            2 - Aktualizacja danych \n \
+            3 - Stworzenie nowej kolekcji \n \
+            4 - Dodanie nowych dokumentów\n \
+            5 - Wyjście z bazy\n")
+        
+        match action:
+            
+            case "1": find()
+            case "2": print("Brak funkcjonalności")
+            case "3": creating_collection()
+            case "4": 
+                
+                docs = prepare_new_docs()
+                add_docs_to_db(docs)
+                
+            case "5": return 0
+            case _: print("Nie zrozumiano polecenia. Spróbuj ponownie")
+
+if __name__ == "__main__":
+    
+    print("Witaj oto baza danych hodowli. Podaj numer akcji, jaką chcesz wykonać: ")
+        
+    flag = 1
+
+    while flag != 0:
+        
+        flag = choose_action()
+        
+    print("Dzięki za współpracę. Na razie!")
