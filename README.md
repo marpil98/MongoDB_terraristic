@@ -2,8 +2,7 @@
 Small application to menage db contaninig data about my breeding
 
 # Disclaimer
-I created this application for my own using, so all komunicats in this app are in polish. Simmilar this document is wrote in polish, but below probably occure translation to english. Maybe during work
-I'll get inspiration to document this project in english, but now I don't need it. If you have any questions you can write it to my via me email: mar.pilewski98@gmail.com.
+I created this application for my own use, so all communications in this application are in Polish. Similarly, this document is written in Polish, but below is translation into English.
 
 PL
 # Licencja
