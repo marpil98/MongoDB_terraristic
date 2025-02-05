@@ -344,25 +344,25 @@ def find(db='hodowla', uri="mongodb://localhost:27017/"):
 def choose_action():
     
     
-        action = input(
-            "1 - Wyszukiwanie.\n \
-            2 - Aktualizacja danych \n \
-            3 - Stworzenie nowej kolekcji \n \
-            4 - Dodanie nowych dokumentów\n \
-            5 - Wyjście z bazy\n")
+    action = input(
+        "1 - Wyszukiwanie.\n \
+        2 - Aktualizacja danych \n \
+        3 - Stworzenie nowej kolekcji \n \
+        4 - Dodanie nowych dokumentów\n \
+        5 - Wyjście z bazy\n")
+    
+    match action:
         
-        match action:
+        case "1": find()
+        case "2": print("Brak funkcjonalności")
+        case "3": creating_collection()
+        case "4": 
             
-            case "1": find()
-            case "2": print("Brak funkcjonalności")
-            case "3": creating_collection()
-            case "4": 
-                
-                docs = prepare_new_docs()
-                add_docs_to_db(docs)
-                
-            case "5": return 0
-            case _: print("Nie zrozumiano polecenia. Spróbuj ponownie")
+            docs = prepare_new_docs()
+            add_docs_to_db(docs)
+            
+        case "5": return 0
+        case _: print("Nie zrozumiano polecenia. Spróbuj ponownie")
 
 if __name__ == "__main__":
     

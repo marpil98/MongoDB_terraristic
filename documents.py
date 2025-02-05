@@ -8,16 +8,17 @@ class Document():
     Class generating documewnt which be adding to DB
     """
     
-    def __init__(self, kolekcja=''):
+    def __init__(self, kolekcja='', klucze=None):
         
         self.pola = {}
         
-        for i in self._klucze(collection=kolekcja):
+        def _pobierz_wartosc(i):
             
             a = input(f"Podaj {i}: ")
+            
             if a == '':
                 
-                continue
+                pass
             
             else:
                 
@@ -28,7 +29,21 @@ class Document():
                 except:
                 
                     self.pola[i] = a
+                        
+        for i in self._klucze(collection=kolekcja):
+                
+            _pobierz_wartosc(i)
+                        
+        if klucze is not None:
             
+            for i in klucze:
+                
+                if i not in self.pola.keys():
+                    
+                    _pobierz_wartosc(i)
+
+            
+                
         a = self._czy_wyjsc()
         
         if a:
@@ -89,17 +104,20 @@ class Document():
         self.print_document()
         
     def print_document(self):
+        
         """Method printing document
         """
         pprint(self.pola)
         
     def _czy_wyjsc(self):
+        
         """Method asking user if he added everything what he wanted
         Returns
         -------
         int
             Flag control exit from loop in constructor
         """
+        
         r = input("Czy to już wszystko (y/n)? ")
         
         if r == 'y':
@@ -113,7 +131,7 @@ class Document():
         else:
             
             print("Zła wartość, spróbuj jeszcze raz")
-            self.czy_wyjsc()
+            self._czy_wyjsc()
 
     def _klucze(self, collection, db='hodowla', uri="mongodb://localhost:27017/"):
         """Method downloading keys existance in collection to which user trying add document.
@@ -172,3 +190,58 @@ class Pajeczak(Document):
     def print_values(self):
         
         return super().print_values()   
+    
+class Gatunek(Document):
+    """A class inheriting from the Document class that creates a document that will represent the arachnid in the database
+    """
+    def __init__(self):
+        
+        super().__init__(kolekcja="Gatunki", 
+                         klucze=[
+                             "rzad_lac", "rzad_pl", "podrzad_lac", "podrzad_pl",
+                             "rodzina_lac", "rodzina_pl", "podrodzina_lac", "podrodzina_pl",
+                             "rodzaj_lac", "rodzaj_pl","gatunek_lac","gatunek_pl",
+                             "wystepowanie","opis_gatunku", "info_nt_hodowli"])
+        
+    def print_values(self):
+        
+        return super().print_values()   
+class Okaz(Document):
+    """A class inheriting from the Document class that creates a document that will represent the arachnid in the database
+    """
+    def __init__(self, species):
+        
+        super().__init__(klucze=["imie","historia_rozwoju","historia_karmienia","odmiana"])
+        
+        with MongoClient() as client:
+            
+            gat = client['hodowla']['Gatunki']
+            
+            id_gat = gat.find_one(
+                {
+                    "$or":[
+                        {"gatunek_pl":species},
+                        {"gatunek_lac":species}
+                    ]
+                }
+            )
+            if id_gat is None:
+                
+                print("O proszę, widzę, że to nowy gatunek. Podaj trochę więcej informacji na jego temat")
+                new_gat = Gatunek()
+                gat.insert_one(new_gat)
+
+                id_gat = gat.find_one(new_gat.__dict__)['_id']
+                
+            else:
+                
+                id_gat = id_gat['_id']
+                
+            self.pola["gatunek"] = id_gat
+                
+            
+    def print_values(self):
+        
+        return super().print_values()      
+    
+a = Okaz("straszyk australijski")
