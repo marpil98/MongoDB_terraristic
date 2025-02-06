@@ -5,7 +5,12 @@ from pymongo import MongoClient
 from pymongo.errors import CollectionInvalid
 from nltk.metrics.distance import edit_distance
 
-from documents import Document, Owad, Pajeczak
+import sys
+sys.path.insert(1, "MongoDB_terraristic")
+from documents import Document, Owad, Pajeczak, Gatunek
+
+db='hodowla'
+uri="mongodb://localhost:27017/"
 
 
 def creating_collection(db_name:str="hodowla", uri:str="mongodb://localhost:27017/"):
@@ -340,7 +345,60 @@ def find(db='hodowla', uri="mongodb://localhost:27017/"):
             
             pprint(f)
         
+
+def update_stan(gatunek, plec, stadium, ilosc):
+    
+    with MongoClient("mongodb://localhost:27017/") as clietn:
         
+        stan = clietn['hodowla']["Stan"]
+        gat_col = clietn['hodowla']["Gatunek"]
+        
+        if stan.count_documents({"gatunek":gatunek}) == 0:
+            
+            dodawanie = input("Tego gatunku nie ma chyba w bazie. Czy chcesz go dodać? (y/n)")
+            
+            def _dodawnie(dodawanie):
+                
+                if dodawanie == 'y':
+                    
+                    gat = Gatunek() # W tym momencie tworzy się również nowy dokument stanu
+                    gat_col.insert_one(gat.pola)
+                    return 1
+                
+                elif dodawanie == 'n':
+                    
+                    print("ok. to nie.")
+                    return 0
+                    
+                else:
+                    
+                    print("Nie rozpoznano polecenia")
+                    dodawanie = input("Czy chcesz dodać ten gatunek do bazy? (y/n)")
+                    _dodawnie(dodawanie)
+            
+            czy_gat_w_db = _dodawnie(dodawanie)
+        
+        else:
+            
+            czy_gat_w_db = 1    
+                    
+        if czy_gat_w_db:
+            
+            id_gat = gat_col.find_one({"$or" : [{"gat_lac" : gatunek}, {"gat_pl" : gatunek}]})
+            
+            stan.update_one(
+                {"gatunek":id_gat}, 
+                    {
+                        '$inc' : {
+                            '.'.join([plec, stadium]) : ilosc
+                            }
+                        }
+                    )
+        else:
+            
+            return 1
+            
+            
 def choose_action():
     
     
@@ -349,7 +407,10 @@ def choose_action():
         2 - Aktualizacja danych \n \
         3 - Stworzenie nowej kolekcji \n \
         4 - Dodanie nowych dokumentów\n \
-        5 - Wyjście z bazy\n")
+        5 - Wylinka\n \
+        6 - Śmierć\Sprzedaż\n \
+        7 - Kupno\Klucie\n \
+        8 - Wyjście z bazy\n")
     
     match action:
         
@@ -361,9 +422,53 @@ def choose_action():
             docs = prepare_new_docs()
             add_docs_to_db(docs)
             
-        case "5": return 0
+        case "5": 
+
+            gat = input("Podaj gatunek: ")
+            print(gat)
+            plec = input("Podaj plec: ")
+            stad = input("Podaj poprzednie stadium: ")
+            il = input("Podaj ilosc: ")
+            new_stad = str(int(stad[1:])+ 1)
+            
+            ret = update_stan(gat, plec, new_stad, il)
+            
+            if ret is None:
+                
+                ret = update_stan(gat, plec, stad, -il)
+                
+            if ret is not None:
+                
+                print("Coś poszło nei tak, póniej się tym zajmę")
+                
+                return ret
+            # Tutaj pomysł, żeby stworzć pipline zmian - ilość starego stadium zmniejszyć o ilość
+            # a nowego zwiększyć (jeśli istnieje - dodać sprawdzenie - poczytać o $push i $pull, update aktualizuje dokument, a nie pole)
+            
+        case "6":
+        
+            gat = input("Podaj gatunek: ")
+            plec = input("Podaj plec: ")
+            stad = input("Podaj poprzednie stadium: ")
+            il = input("Podaj poprzednie ilosc: ")
+            
+            update_stan(gat, plec, stad, -il)
+            
+        case "7":
+        
+            gat = input("Podaj gatunek: ")
+            plec = input("Podaj plec: ")
+            stad = input("Podaj poprzednie stadium: ")
+            il = input("Podaj ilosc: ")
+            
+            update_stan(gat, plec, stad, il)
+            
+        case "8": return 0
+        
         case _: print("Nie zrozumiano polecenia. Spróbuj ponownie")
 
+        
+        
 if __name__ == "__main__":
     
     print("Witaj oto baza danych hodowli. Podaj numer akcji, jaką chcesz wykonać: ")
@@ -375,3 +480,4 @@ if __name__ == "__main__":
         flag = choose_action()
         
     print("Dzięki za współpracę. Na razie!")
+    

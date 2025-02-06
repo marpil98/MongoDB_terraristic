@@ -2,17 +2,17 @@ from nltk.metrics.distance import edit_distance
 import pymongo
 from pymongo import MongoClient
 from pprint import pprint
-
+   
 class Document():
     """
-    Class generating documewnt which be adding to DB
+    Class generating document which be adding to DB
     """
     
-    def __init__(self, kolekcja='', klucze=None):
+    def __init__(self, kolekcja='', klucze=None, user=True, values=None):
         
         self.pola = {}
         
-        def _pobierz_wartosc(i):
+        def _pobierz_wartosc_user(i):
             
             a = input(f"Podaj {i}: ")
             
@@ -29,66 +29,69 @@ class Document():
                 except:
                 
                     self.pola[i] = a
-                        
-        for i in self._klucze(collection=kolekcja):
-                
-            _pobierz_wartosc(i)
-                        
-        if klucze is not None:
-            
-            for i in klucze:
-                
-                if i not in self.pola.keys():
-                    
-                    _pobierz_wartosc(i)
 
+        if user:               
             
+            for i in self._klucze(collection=kolekcja):
+
+                    _pobierz_wartosc_user(i)
+                            
+            if klucze is not None:
                 
-        a = self._czy_wyjsc()
-        
-        if a:
-        
-            def _unikalnosc_kluczy():
-                
-                keys  = input("Podaj po przecinku klucze: ").split(',')
-                
-                if len(keys) == len(set(keys)):
+                for i in klucze:
                     
-                    keys = [i.removeprefix(' ').removesuffix(' ') for i in keys]
-                    return keys
-                
-                else:
-                    
-                    print("Klucze nie są unikatowe, spróbuj ponownie")
-                    _unikalnosc_kluczy()
-                    
-                    
-            keys = _unikalnosc_kluczy()    
-            
-            
-            def _zgodnosc_liczby_el(keys):
-                
-                values = input("Podaj po przecinku wartości: ").split(',')
-                
-                if len(keys) == len(values):
-                    
-                    values = [i.removeprefix(' ').removesuffix(' ') for i in values]
-                    return values
-                
-                else:
-                    
-                    a = input("Liczba kluczy jest inna niż liczba wartości. \n Chcesz ponownie podać klucze ('k') czy wartosci ('w')?")
-                    
-                    if a == 'k':
+                    if i not in self.pola.keys():
                         
-                        keys = _unikalnosc_kluczy()
-                        return values
+                        _pobierz_wartosc_user(i)
+
+                
+                    
+            a = self._czy_wyjsc()
+            
+            if a:
+            
+                def _unikalnosc_kluczy():
+                    
+                    keys  = input("Podaj po przecinku klucze: ").split(',')
+                    
+                    if len(keys) == len(set(keys)):
                         
+                        keys = [i.removeprefix(' ').removesuffix(' ') for i in keys]
+                        return keys
+                    
                     else:
                         
-                        return _zgodnosc_liczby_el(keys)
+                        print("Klucze nie są unikatowe, spróbuj ponownie")
+                        _unikalnosc_kluczy()
+                        
+                        
+                keys = _unikalnosc_kluczy()    
+                
+                
+                def _zgodnosc_liczby_el(keys):
                     
-            values = _zgodnosc_liczby_el(keys)
+                    values = input("Podaj po przecinku wartości: ").split(',')
+                    
+                    if len(keys) == len(values):
+                        
+                        values = [i.removeprefix(' ').removesuffix(' ') for i in values]
+                        return values
+                    
+                    else:
+                        
+                        a = input("Liczba kluczy jest inna niż liczba wartości. \n Chcesz ponownie podać klucze ('k') czy wartosci ('w')?")
+                        
+                        if a == 'k':
+                            
+                            keys = _unikalnosc_kluczy()
+                            return values
+                            
+                        else:
+                            
+                            return _zgodnosc_liczby_el(keys)
+                        
+                values = _zgodnosc_liczby_el(keys)
+            
             pola = dict(zip(keys, values))
             
             try:
@@ -100,14 +103,28 @@ class Document():
             except:   
                 
                 self.pola = pola
-        
+        else:
+            
+            if values is not None and keys is not None:
+                
+                self.pola = dict(zip(keys, values))
+                
+            else:
+                
+                self.pola = {}
+                
         self.print_document()
+        
         
     def print_document(self):
         
         """Method printing document
         """
         pprint(self.pola)
+    
+    def app(self, klucze, wartosci):
+        
+        self.pola = self.pola | dict(zip(klucze, wartosci))
         
     def _czy_wyjsc(self):
         
@@ -132,7 +149,7 @@ class Document():
             
             print("Zła wartość, spróbuj jeszcze raz")
             self._czy_wyjsc()
-
+    
     def _klucze(self, collection, db='hodowla', uri="mongodb://localhost:27017/"):
         """Method downloading keys existance in collection to which user trying add document.
 
@@ -206,13 +223,12 @@ class Gatunek(Document):
     def print_values(self):
         
         return super().print_values()   
+
 class Okaz(Document):
     """A class inheriting from the Document class that creates a document that will represent the arachnid in the database
     """
     def __init__(self, species):
-        
-        super().__init__(klucze=["imie","historia_rozwoju","historia_karmienia","odmiana"])
-        
+                
         with MongoClient() as client:
             
             gat = client['hodowla']['Gatunki']
@@ -225,23 +241,102 @@ class Okaz(Document):
                     ]
                 }
             )
+            def _wybor(cecha, zbior_cech):
+                
+                c = input(f"Podaj {cecha} ({'/'.join(zbior_cech)})")
+                
+                if c not in zbior_cech:
+                    
+                    print("Nie rozpoznano cechy")
+                    _wybor(cecha, zbior_cech)
+                
+                else: 
+                    
+                    return c
+            plec = _wybor("płeć", ["samiec", "samica", "nosex"])
+            self.pola['plec'] = plec
+            
+            stadium = _wybor("stadium", ["L_","adult", "jajo"])
+            self.pola['stadium'] = stadium
+            
             if id_gat is None:
                 
                 print("O proszę, widzę, że to nowy gatunek. Podaj trochę więcej informacji na jego temat")
+                
+                
+                
                 new_gat = Gatunek()
-                gat.insert_one(new_gat)
+                gat.insert_one(new_gat.pola)
 
-                id_gat = gat.find_one(new_gat.__dict__)['_id']
+                id_gat = gat.find_one(new_gat.pola)['_id']
+                
+
+                match plec:
+                    
+                    case "samiec":
+                        
+                        values = [id_gat, {stadium : 1}, {}, {}]
+                        
+                    case "samica":
+                        
+                        values = [id_gat, {}, {stadium : 1}, {}]
+                    
+                    case "nosex":
+                
+                        values = [id_gat, {}, {}, {stadium : 1}]
+                    
+                    case _:
+                        
+                        pass
+                    
+                new_stan = Stan(id_gat=id_gat, values=values)
+                
+                stan = client['hodowla']['Stan']
+                stan.insert_one(new_stan.pola)
+                
                 
             else:
                 
                 id_gat = id_gat['_id']
                 
-            self.pola["gatunek"] = id_gat
+                def _czy_nowy():
+                
+                    czy_nowy = input("Czy to nowy egzemplarz w hodowli? (y/n)")
+                    
+                    if czy_nowy == 'y':
+                        
+                        print("Tu pojawi się funkcja uaktualniająca kolekcję")
+                        
+                    elif czy_nowy == "n":
+                        
+                        pass
+                    
+                    else:
+                        
+                        print("Nie rozpoznano polecenia")
+                    
+                _czy_nowy()
+        
+        super().__init__(klucze=["imie","historia_rozwoju","historia_karmienia","odmiana"])        
+        self.pola["gatunek"] = id_gat
+        
                 
             
     def print_values(self):
         
         return super().print_values()      
     
-a = Okaz("straszyk australijski")
+class Stan(Document):
+    
+    def __init__(self, values, kolekcja='Stan', user=False, ):
+        
+        klucze = ["gatunek", "samce", "samice", "nosex"]
+        
+        super().__init__(kolekcja, klucze, user, values)
+        
+    def print_values(self):
+        
+        return super().print_values()   
+    
+    
+#a = Okaz("Poecilotheria metalica")
