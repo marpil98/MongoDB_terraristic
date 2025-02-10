@@ -7,7 +7,7 @@ from pprint import pprint
 
 from documents import Stan 
 
-
+# Below classes will be using to adding documents from files
 class DocsAdder():
     
     def __init__(self, path, collection, many=False):
@@ -146,7 +146,7 @@ class StanActualizer(DocsAdder):
         self.quantity = quantity
         self.plec = file['płeć']
         self.stadium = file['stadium']
-        self._actualization()
+        self._actualization() # Być może ta funkcja nie powinna być wywoływana w tym miejscu, a raczej być publiczną i zostać wywaołana po utworzeniu isntacji klasy
         
     def actualize(self):
         
@@ -205,10 +205,8 @@ class StanActualizer(DocsAdder):
             {"gatunek" : id_gat},
             {"$inc": good_act_dict}
         )
-        
-        
-        
-            
+
+
 stan = StanActualizer(1,2,3,{"płeć":"nosex", "stadium":"L1"},5)  
 # adder = GatunekAdder(path="/home/marcinpielwski/MongoDB/MongoDB_terraristic/gat", many=True)
 
