@@ -1,8 +1,8 @@
-from nltk.metrics.distance import edit_distance
 import pymongo
 from pymongo import MongoClient
 from pprint import pprint
-   
+
+# Żadna z poniższych klas nie tworzy
 class Document():
     """
     Class generating document which be adding to DB
@@ -184,32 +184,39 @@ class Document():
                 
             return uniq_keys
     
+# Below classes was primal concept how to collect information in database, but actuall idea is better - more flexible, more general and better stucturized than this
+  
+# class Owad(Document):
+#     """A class inheriting from the Document class that creates a document that will represent the insect in the database
+#     """
+#     def __init__(self):
+        
+#         super().__init__(kolekcja="Owady")
     
-class Owad(Document):
-    """A class inheriting from the Document class that creates a document that will represent the insect in the database
-    """
-    def __init__(self):
+#     def print_values(self):
         
-        super().__init__(kolekcja="Owady")
-    
-    def print_values(self):
-        
-        return super().print_values()
+#         return super().print_values()
     
     
-class Pajeczak(Document):
-    """A class inheriting from the Document class that creates a document that will represent the arachnid in the database
-    """
-    def __init__(self):
+# class Pajeczak(Document):
+#     """A class inheriting from the Document class that creates a document that will represent the arachnid in the database
+#     """
+#     def __init__(self):
         
-        super().__init__(kolekcja="Pajęczaki")
+#         super().__init__(kolekcja="Pajęczaki")
         
-    def print_values(self):
+#     def print_values(self):
         
-        return super().print_values()   
+#         return super().print_values()   
     
 class Gatunek(Document):
-    """A class inheriting from the Document class that creates a document that will represent the arachnid in the database
+    """"Create document about spieces
+
+    Parameters
+    ----------
+    Document : Document
+        Higher class for each doc creted manually via app running
+        
     """
     def __init__(self):
         
@@ -225,7 +232,12 @@ class Gatunek(Document):
         return super().print_values()   
 
 class Okaz(Document):
-    """A class inheriting from the Document class that creates a document that will represent the arachnid in the database
+    """Create document about especial example of species
+    Parameters
+    ----------
+    Document : Document
+        Higher class for each doc creted manually via app running
+        
     """
     def __init__(self, species):
                 
@@ -241,6 +253,7 @@ class Okaz(Document):
                     ]
                 }
             )
+            
             def _wybor(cecha, zbior_cech):
                 
                 c = input(f"Podaj {cecha} ({'/'.join(zbior_cech)})")
@@ -253,6 +266,7 @@ class Okaz(Document):
                 else: 
                     
                     return c
+                
             plec = _wybor("płeć", ["samiec", "samica", "nosex"])
             self.pola['plec'] = plec
             
@@ -305,7 +319,14 @@ class Okaz(Document):
                     
                     if czy_nowy == 'y':
                         
-                        print("Tu pojawi się funkcja uaktualniająca kolekcję")
+                        stan.update_one(
+                            {"gatunek":gatunek}, 
+                                {
+                                    '$inc' : {
+                                        '.'.join([plec, stadium]) : 1
+                                        }
+                                    }
+                                )
                         
                     elif czy_nowy == "n":
                         
@@ -327,7 +348,14 @@ class Okaz(Document):
         return super().print_values()      
     
 class Stan(Document):
-    
+    """Create document about state of breeding for given speciec
+
+    Parameters
+    ----------
+    Document : Document
+        Higher class for each doc creted manually via app running
+        
+    """
     def __init__(self, values, kolekcja='Stan', user=False, ):
         
         klucze = ["gatunek", "samce", "samice", "nosex"]
