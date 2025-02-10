@@ -20,24 +20,32 @@ class DocsAdder():
             
             files = []
             
-            for file in os.listdir():
+            for file in os.listdir(path):
                 
                 if file.endswith(".json"):
                     
-                    with open(os.path.join(self.path,".json"), 'r', encoding="utf-8") as file:
-                        f = json.load(file)
-                        files.append(f)
-                    
+                    with open(os.path.join(self.path, file), 'r', encoding="utf-8") as f:
+                        doc = json.load(f)
+                        self._clean_doc(doc)
+                        files.append(doc)
+                        
             self.files = files
             
         else:
             
-            with open(self.path, 'r', encoding="utf-8") as file:
+            with open(self.path, 'r', encoding="utf-8") as f:
                 
-                f = json.load(file)
-                pprint(f)
-                self.files = [f]
+                self.files = [json.load(f)]
+                
+    def _clean_doc(self, doc):
+        
+        keys = list(doc.keys())
+        for i in keys:
             
+            if doc[i] in ["", " "]:
+                
+                doc.pop(i)
+        
     def add_to_db(self, db='hodowla', uri="mongodb://localhost:27017/"):
         
         with MongoClient(uri) as client:
@@ -51,7 +59,8 @@ class GatunekAdder(DocsAdder):
         
         collection="Gatunki"
         super().__init__(path, collection, many)    
-
+        pprint(self.files)
+        
     def add_to_db(self, db='hodowla', uri="mongodb://localhost:27017/"):
         # Trzeba sprawdzić, czy gatunek już istnieje w bazie
         juz_istnieja = {}
@@ -59,6 +68,7 @@ class GatunekAdder(DocsAdder):
         with MongoClient(uri) as client:
             
             col = client[db][self.collection]
+            to_pop =[]
             for i in range(len(self.files)):
                 
                 count = col.count_documents({"gatunek_lac":self.files[i]["gatunek_lac"]})
@@ -66,10 +76,15 @@ class GatunekAdder(DocsAdder):
                 if count > 0:
                     
                     juz_istnieja[self.files[i]["gatunek_lac"]] = self.files[i] 
-                    self.files.pop(i)
+                    to_pop.append(i)
+                    
+            for i in to_pop:
+                
+                self.files.pop(i)
+                map(lambda x: x-1, to_pop)
                     
         print("Poniższe gatunki nie zostały dodane ze względu na fakt, że karty tych gatunków istnieją już w bazie:")
-        pprint(juz_istnieja)
+
         for i in juz_istnieja.keys():
             
             print(f"\t{i}")  
@@ -108,6 +123,6 @@ class StanAdder(DocsAdder):
         super().__init__(path, collection, format, many)
             
             
-adder = GatunekAdder(path="/home/marcinpielwski/MongoDB/MongoDB_terraristic/gtaunek_test.json")
+adder = GatunekAdder(path="/home/marcinpielwski/MongoDB/MongoDB_terraristic/gat", many=True)
 
 adder.add_to_db()
