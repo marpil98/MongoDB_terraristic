@@ -59,7 +59,6 @@ class GatunekAdder(DocsAdder):
         
         collection="Gatunki"
         super().__init__(path, collection, many)    
-        pprint(self.files)
         
     def add_to_db(self, db='hodowla', uri="mongodb://localhost:27017/"):
         # Trzeba sprawdzić, czy gatunek już istnieje w bazie
@@ -78,10 +77,18 @@ class GatunekAdder(DocsAdder):
                     juz_istnieja[self.files[i]["gatunek_lac"]] = self.files[i] 
                     to_pop.append(i)
                     
-            for i in to_pop:
+            for i in range(len(to_pop)):
                 
-                self.files.pop(i)
-                map(lambda x: x-1, to_pop)
+                print(to_pop)
+                self.files.pop(to_pop[i])
+                
+                # Indeksy do usunięcia dodają się po kolei, czyli wcześniejszy indeks jest zawsze mniejszy od następnych.
+                # Usunięcie elementu z listy powoduje, że indeksy wszystkich następnych elementów zmniejszają się o 1
+                # Wykoanując na raz usunięcie pliku z listy i zmniejszenie o 1 wartości indeksów wszystkich plików do usunięcia,
+                # przy iterajcynym przechodzeniu w pętli przez każdy kolejny element listy to_pop (po to jest range(len), a nie po prostu lista)
+                # zapenia usunięcie elementów o odpowiednim indeksie.
+                
+                to_pop = list(map(lambda x: x-1, to_pop))
                     
         print("Poniższe gatunki nie zostały dodane ze względu na fakt, że karty tych gatunków istnieją już w bazie:")
 
