@@ -7,7 +7,9 @@ from nltk.metrics.distance import edit_distance
 
 import sys
 sys.path.insert(1, "MongoDB_terraristic")
-from documents import Document, Owad, Pajeczak, Gatunek
+
+from documents import Document, Gatunek, Okaz
+from DocsAdder import GatunekAdder, OkazAdder
 
 db='hodowla'
 uri="mongodb://localhost:27017/"
@@ -15,7 +17,7 @@ uri="mongodb://localhost:27017/"
 
 def creating_collection(db_name:str="hodowla", uri:str="mongodb://localhost:27017/"):
     
-    """Creating collection in existance db
+    """Creating collection in existing db
     
     
     Parameters
@@ -153,10 +155,10 @@ def prepare_new_docs():
     Returns
     -------
     Document
-        Object from class document, whch will be added to db
+        Object from class document, which will be added to db
     """
     
-    a = input("Czesc, podaj, jaki typ zwierzaka się pojawił w hodowli (pajeczak/owad/inny): ")
+    a = input("Czesc, podaj, jaki dokument chcesz dodać (gatunek/okaz): ")
     
     def _transforming_input(inp):
         
@@ -182,13 +184,13 @@ def prepare_new_docs():
             
         print(edit_distance(inp, "inny"))
         
-        if edit_distance(inp, "pajeczak")<=2:
+        if edit_distance(inp, "gatunek")<=2:
 
-            inp = "pajeczak"
+            inp = "gatunek"
         
-        elif edit_distance(inp, "owad")<=2:
+        elif edit_distance(inp, "okaz")<=2:
 
-            inp = "owad"
+            inp = "okaz"
             
         elif edit_distance(inp, "inny")<=2:
 
@@ -205,7 +207,7 @@ def prepare_new_docs():
     
     
     docs = {
-        'P':[],
+        'G':[],
         'O':[],
         'I':[],
         }
@@ -217,13 +219,13 @@ def prepare_new_docs():
         
         match a:
             
-            case "pajeczak":
+            case "gatunek":
                 
-                docs['P'].append(Pajeczak().pola)
+                docs['P'].append(Gatunek().pola)
                 
-            case "owad":
+            case "okaz":
                 
-                docs['O'].append(Owad().pola)
+                docs['O'].append(Okaz().pola)
                 
             case "inny":
                 
@@ -246,6 +248,95 @@ def prepare_new_docs():
     
     return docs
    
+def prepare_new_docs_ffile():
+    
+    """Preparing new documents, which will added to db
+
+    Returns
+    -------
+    Document
+        Object from class document, which will be added to db
+    """
+    
+    a = input("Cześć, podaj, jaki dokument chcesz dodać (gatunek/okaz/inny): ")
+    
+    def _transforming_input(inp):
+        
+        """Helping function which transform input to knowing form, or force the user to 
+        give corect name of collection
+
+        Parameters
+        ----------
+        inp : str
+            Name of collection
+
+        Returns
+        -------
+        str
+            "Normalized" name
+        """
+        
+        inp = inp.lower().replace('ą','a').replace('ę','e')
+        
+        if inp == 'inne':
+            
+            inp = 'inny'
+            
+        print(edit_distance(inp, "inny"))
+        
+        if edit_distance(inp, "gatunek")<=2:
+
+            inp = "gatunek"
+        
+        elif edit_distance(inp, "okaz")<=2:
+
+            inp = "okaz"
+            
+        else:
+            
+            print("Nie rozpoznano typu dokumentu. ")
+            inp = input("Podaj go jeszcze raz: ")
+            inp =_transforming_input(inp)
+            
+            
+        return inp   
+    
+    
+    docs = {
+        'G':[],
+        'O':[],
+        }
+            
+    a = _transforming_input(a)    
+    path = input("Podaj ścieżkę do dokumentu/dokumentów: ")
+    
+    if path.endswith('.json'):
+
+        many = False
+        
+    else:
+        
+        many = True
+        
+    match a:
+        
+        case "gatunek":
+            
+            adder = GatunekAdder(path=path, many=many)
+            
+        case "okaz":
+            
+            adder = OkazAdder(path=path, many=many)
+        
+        case _:
+            
+            print("Nie rozpoznano wartości")
+            
+            pass
+
+    adder.add_to_db()
+    
+    return docs
                 
 def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
     
@@ -264,37 +355,37 @@ def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
     with MongoClient(uri) as client:
         
         db = client[db]
-        pajeczaki = db['pajeczaki']
-        owady = db['owady']
+        gatunki = db['Gatunki']
+        okazy = db['okazy']
         for i in docs.keys():
             
             match i:
                 
-                case 'P':
+                case 'G':
                     
-                    if len(docs['P'])>0:
+                    if len(docs['G'])>0:
                         
-                        pajeczaki.insert_many(docs['P'])
+                        gatunki.insert_many(docs['G'])
                     
                     else:
                         
-                        print("Brak pajeczakow do dodania")
+                        print("Brak gatunków do dodania")
                     
                 case 'O':
                     
                     if len(docs['O'])>0:
                         
-                        owady.insert_many(docs['O'])
+                        okazy.insert_many(docs['O'])
                         
                     else:
                         
-                        print("Brak owadów do dodania")
+                        print("Brak okazów do dodania")
                     
                 case 'I':
                     
                     def nowa_kolekcja():
                         
-                        nowa = input("Czy chcesz utworzyć nową kolekcję? (y/n)")
+                        nowa = input("Czy chcesz utworzyć nową kolekcję? (y/n) ")
                         
                         if nowa == 'y':
                             
@@ -324,7 +415,7 @@ def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
 def colections_names(db):
     
     pprint(db.list_collection_names())
- 
+
     
 def find(db='hodowla', uri="mongodb://localhost:27017/"):
     
@@ -355,7 +446,7 @@ def update_stan(gatunek, plec, stadium, ilosc):
         
         if stan.count_documents({"gatunek":gatunek}) == 0:
             
-            dodawanie = input("Tego gatunku nie ma chyba w bazie. Czy chcesz go dodać? (y/n)")
+            dodawanie = input("Tego gatunku nie ma chyba w bazie. Czy chcesz go dodać? (y/n) ")
             
             def _dodawnie(dodawanie):
                 
@@ -373,7 +464,7 @@ def update_stan(gatunek, plec, stadium, ilosc):
                 else:
                     
                     print("Nie rozpoznano polecenia")
-                    dodawanie = input("Czy chcesz dodać ten gatunek do bazy? (y/n)")
+                    dodawanie = input("Czy chcesz dodać ten gatunek do bazy? (y/n) ")
                     _dodawnie(dodawanie)
             
             czy_gat_w_db = _dodawnie(dodawanie)
@@ -406,11 +497,12 @@ def choose_action():
         "1 - Wyszukiwanie.\n \
         2 - Aktualizacja danych \n \
         3 - Stworzenie nowej kolekcji \n \
-        4 - Dodanie nowych dokumentów\n \
-        5 - Wylinka\n \
-        6 - Śmierć\Sprzedaż\n \
-        7 - Kupno\Klucie\n \
-        8 - Wyjście z bazy\n")
+        4 - Dodanie dokumentu z palca\n \
+        5 - Dodanie dokumentu z plików\n \
+        6 - Wylinka\n \
+        7 - Śmierć\Sprzedaż\n \
+        8 - Kupno\Klucie\n \
+        9 - Wyjście z bazy\n")
     
     match action:
         
@@ -423,9 +515,13 @@ def choose_action():
             add_docs_to_db(docs)
             
         case "5": 
+            
+            docs = prepare_new_docs_ffile()
+            
+        case "6": 
+            #TO DO: sprawdzenie, czy gatunek jest w bazie powinno rzucać info od razu, nie dopiero po podaniu reszty informacji
 
             gat = input("Podaj gatunek: ")
-            print(gat)
             plec = input("Podaj plec: ")
             stad = input("Podaj poprzednie stadium: ")
             il = input("Podaj ilosc: ")
@@ -445,7 +541,7 @@ def choose_action():
             # Tutaj pomysł, żeby stworzć pipline zmian - ilość starego stadium zmniejszyć o ilość
             # a nowego zwiększyć (jeśli istnieje - dodać sprawdzenie - poczytać o $push i $pull, update aktualizuje dokument, a nie pole)
             
-        case "6":
+        case "7":
         
             gat = input("Podaj gatunek: ")
             plec = input("Podaj plec: ")
@@ -454,7 +550,7 @@ def choose_action():
             
             update_stan(gat, plec, stad, -il)
             
-        case "7":
+        case "8":
         
             gat = input("Podaj gatunek: ")
             plec = input("Podaj plec: ")
@@ -463,11 +559,10 @@ def choose_action():
             
             update_stan(gat, plec, stad, il)
             
-        case "8": return 0
+        case "9": return 0
         
         case _: print("Nie zrozumiano polecenia. Spróbuj ponownie")
 
-        
         
 if __name__ == "__main__":
     

@@ -1,5 +1,6 @@
 import os 
 import json
+import shutil
 
 from pymongo import MongoClient
 
@@ -15,6 +16,7 @@ class DocsAdder():
         self.path = path
         self.collection = collection
         self.many = many
+        self.filenames = []
         
         if many:
             
@@ -25,10 +27,13 @@ class DocsAdder():
                 if file.endswith(".json"):
                     
                     with open(os.path.join(self.path, file), 'r', encoding="utf-8") as f:
+                        
                         doc = json.load(f)
                         self._clean_doc(doc)
                         files.append(doc)
-                        
+
+                    self.filenames.append(file)    
+
             self.files = files
             
         else:
@@ -48,11 +53,35 @@ class DocsAdder():
         
     def add_to_db(self, db='hodowla', uri="mongodb://localhost:27017/"):
         
-        with MongoClient(uri) as client:
+        try:
             
-            col = client[db][self.collection]
-            col.insert_many(self.files)
+            with MongoClient(uri) as client:
+                
+                col = client[db][self.collection]
+                col.insert_many(self.files)
+
+            for i in self.filenames:
+                
+                self._move_file(i)
+                
+        except Exception as e:
             
+            print(e)
+            return 0
+        
+    def _move_file(self, name):
+        
+        dest_folder = os.path.join(self.path, 'dodane')
+                
+        if not os.path.exists(dest_folder):
+            
+            os.mkdir(path=dest_folder)
+            
+        source = os.path.join(self.path, name)
+        dest = os.path.join(dest_folder, name)
+        
+        shutil.move(source, dest)
+        
 class GatunekAdder(DocsAdder):
     
     def __init__(self, path, many=False):
@@ -67,19 +96,23 @@ class GatunekAdder(DocsAdder):
         with MongoClient(uri) as client:
             
             col = client[db][self.collection]
-            to_pop =[]
+            to_pop = []
+            added_names = []
             for i in range(len(self.files)):
                 
-                count = col.count_documents({"gatunek_lac":self.files[i]["gatunek_lac"]})
+                name = self.files[i]["gatunek_lac"]
+                count = col.count_documents({"gatunek_lac":name})
                 
-                if count > 0:
+                if (count > 0) or name in added_names:
                     
                     juz_istnieja[self.files[i]["gatunek_lac"]] = self.files[i] 
                     to_pop.append(i)
+                    self._move_file(self.filenames[i])
+                    
+                added_names.append(name)
                     
             for i in range(len(to_pop)):
                 
-                print(to_pop)
                 self.files.pop(to_pop[i])
                 
                 # Indeksy do usunięcia dodają się po kolei, czyli wcześniejszy indeks jest zawsze mniejszy od następnych.
@@ -207,7 +240,7 @@ class StanActualizer(DocsAdder):
         )
 
 
-stan = StanActualizer(1,2,3,{"płeć":"nosex", "stadium":"L1"},5)  
+#stan = StanActualizer(1,2,3,{"płeć":"nosex", "stadium":"L1"},5)  
 # adder = GatunekAdder(path="/home/marcinpielwski/MongoDB/MongoDB_terraristic/gat", many=True)
 
 # adder.add_to_db()
