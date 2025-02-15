@@ -403,7 +403,7 @@ def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
                             print("Nie wiem co chcesz zrobić")
                             nowa_kolekcja()
                             
-                    if len(docs['I'])>0:
+                    if len(docs['I']) > 0:
                         
                         nowa_kolekcja()
                         
@@ -489,12 +489,154 @@ def update_stan(gatunek, plec, stadium, ilosc):
             
             return 1
             
+def delete_docs(client, collection, conditions, db='hodowla'):
+    
+    coll = client[db][collection]
+    r = coll.delete_many(conditions)
+    return r
+
+def cond_find_gat(gatunek):
+    
+    cond = {"$or":
+        [{"gatunek_lac":gatunek},
+        {"gatunek_pl":gatunek}]
+    }
+    
+    return cond
+
+
+def delete_gat(gatunek):
+    
+    with MongoClient() as client:
+                                
+        res = client['hodowla']['Gatunki'].find({})
+                    
+        cond = cond_find_gat(gatunek)
+        result = delete_docs(client=client, collection="Gatunki", conditions=cond)
+        result = result.deleted_count
+
+        if result == 0:
             
+            # wykaz = []
+            
+            raise Exception("Nie odnaleziono takiego gatunku Upewnij się że podałeś odpowiednią nazwę i spróbuj jeszcze raz. ")
+            
+            # for i in res:
+                
+            #     n=i['gatunek_lac']
+            #     print(n)
+            #     wykaz.append(n)
+
+
+
+def delete_stan(gatunek):
+    
+    try:
+        
+        with MongoClient(uri) as client:
+            
+            gat = client['hodowla']['Gatunki']
+            stan = client['hodowla']['Stan']
+            
+            cond_gat = cond_find_gat(gatunek)
+            
+            id_gat = gat.find(cond_gat)
+            
+            id_gat = id_gat['_id']
+            
+            cond_stan = {"gatunek" : id_gat}
+            delete_docs(client, "Stan", cond_stan)
+            
+        print(f"Usunięto stan gatunku {gatunek}")
+        
+    except:
+        
+        raise
+    
+def delete_okaz(imie):
+    
+    try:
+        with MongoClient(uri) as client:
+            
+            okaz = client['hodowla']['Okazy']
+            res = okaz.find({"imię" : imie})
+            
+            plec = res['plec']
+            stadium = res['stadium']
+            gatunek = res['gatunek']
+            gat = client['hodowla']['Gatunki']
+            gatunek = gat.find(cond_find_gat(gatunek))['gatunek_lac']
+        
+        update_stan(gatunek=gatunek, plec=plec, stadium=stadium, ilosc=-1)
+    
+    except:
+        
+        raise
+    
+def usuwanie_dokumentow():
+    
+    run = 1
+            
+    while run == 1:
+        dokument = input("Jaki dokument chcesz usunąć (gatunek, stan, okaz). Wyjście do menu głównego (q)")
+        dokument = dokument.lower()
+        
+        match dokument:
+            
+            case "gatunek":
+                
+                try:
+                    
+                    gat = input("Podaj nazwę gatunku")
+                    delete_gat(gat)
+                    
+                    run = 0
+                        
+                except Exception as e:
+                    
+                    print(f"Pojawił się błąd {e}. \n Spróbuj ponownie")
+                    
+            case "okaz":
+                
+                try:
+                    
+                    imie = input("Podaj imię usuwanego okazu: ")
+                    delete_okaz(imie)
+                    
+                    run = 0
+                    
+                except Exception as e:
+                    
+                    print(f"Pojawił się błąd {e}. \n Spróbuj ponownie")
+                    
+            case "stan":
+                
+                try:
+                    
+                    gat = input("Podaj nazwę gatunku")
+                    delete_stan(gat)
+                    
+                    run = 0
+                        
+                except Exception as e:
+                    
+                    print(f"Pojawił się błąd {e}. \n Spróbuj ponownie")
+            
+            case 'q':
+                
+                run = 0
+                
+            case _:
+                
+                print("Nie rozpoznao polecenia. Spróbuj ponownie")
+                    
+                
 def choose_action():
     
     
     action = input(
-        "1 - Wyszukiwanie.\n \
+        "\n \
+        1 - Wyszukiwanie.\n \
         2 - Aktualizacja danych \n \
         3 - Stworzenie nowej kolekcji \n \
         4 - Dodanie dokumentu z palca\n \
@@ -502,13 +644,23 @@ def choose_action():
         6 - Wylinka\n \
         7 - Śmierć\Sprzedaż\n \
         8 - Kupno\Klucie\n \
-        9 - Wyjście z bazy\n")
+        9 - Usuń dokument\n \
+        10 - Wyjście z bazy\n")
     
     match action:
         
-        case "1": find()
-        case "2": print("Brak funkcjonalności")
-        case "3": creating_collection()
+        case "1": 
+            
+            find()
+            
+        case "2": 
+            
+            print("Brak funkcjonalności")
+            
+        case "3": 
+            
+            creating_collection()
+            
         case "4": 
             
             docs = prepare_new_docs()
@@ -535,7 +687,7 @@ def choose_action():
                 
             if ret is not None:
                 
-                print("Coś poszło nei tak, póniej się tym zajmę")
+                print("Coś poszło nie tak, póniej się tym zajmę")
                 
                 return ret
             # Tutaj pomysł, żeby stworzć pipline zmian - ilość starego stadium zmniejszyć o ilość
@@ -559,7 +711,11 @@ def choose_action():
             
             update_stan(gat, plec, stad, il)
             
-        case "9": return 0
+        case "9": 
+            
+            usuwanie_dokumentow()
+            
+        case "10": return 0
         
         case _: print("Nie zrozumiano polecenia. Spróbuj ponownie")
 
