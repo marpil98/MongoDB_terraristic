@@ -9,11 +9,10 @@ import sys
 sys.path.insert(1, "MongoDB_terraristic")
 
 from documents import Document, Gatunek, Okaz
-from DocsAdder import GatunekAdder, OkazAdder
+from DocsAdder import GatunekAdder, OkazAdder, StanAdder
 
 db='hodowla'
 uri="mongodb://localhost:27017/"
-
 
 def creating_collection(db_name:str="hodowla", uri:str="mongodb://localhost:27017/"):
     
@@ -258,7 +257,7 @@ def prepare_new_docs_ffile():
         Object from class document, which will be added to db
     """
     
-    a = input("Cześć, podaj, jaki dokument chcesz dodać (gatunek/okaz/inny): ")
+    a = input("Cześć, podaj, jaki dokument chcesz dodać (gatunek/okaz/stan/inny): ")
     
     def _transforming_input(inp):
         
@@ -288,6 +287,10 @@ def prepare_new_docs_ffile():
 
             inp = "gatunek"
         
+        elif edit_distance(inp, "stan")<=2:
+
+            inp = "stan"
+        
         elif edit_distance(inp, "okaz")<=2:
 
             inp = "okaz"
@@ -305,6 +308,7 @@ def prepare_new_docs_ffile():
     docs = {
         'G':[],
         'O':[],
+        'S':[],
         }
             
     a = _transforming_input(a)    
@@ -327,7 +331,10 @@ def prepare_new_docs_ffile():
         case "okaz":
             
             adder = OkazAdder(path=path, many=many)
-        
+            
+        case "stan":
+            
+            adder = StanAdder(path=path, many=many)
         case _:
             
             print("Nie rozpoznano wartości")
@@ -528,7 +535,6 @@ def delete_gat(gatunek):
             #     wykaz.append(n)
 
 
-
 def delete_stan(gatunek):
     
     try:
@@ -540,7 +546,7 @@ def delete_stan(gatunek):
             
             cond_gat = cond_find_gat(gatunek)
             
-            id_gat = gat.find(cond_gat)
+            id_gat = gat.find_one(cond_gat)
             
             id_gat = id_gat['_id']
             
@@ -578,7 +584,7 @@ def usuwanie_dokumentow():
     run = 1
             
     while run == 1:
-        dokument = input("Jaki dokument chcesz usunąć (gatunek, stan, okaz). Wyjście do menu głównego (q)")
+        dokument = input("Jaki dokument chcesz usunąć (gatunek, stan, okaz). Wyjście do menu głównego (q). ")
         dokument = dokument.lower()
         
         match dokument:
@@ -630,9 +636,8 @@ def usuwanie_dokumentow():
                 
                 print("Nie rozpoznao polecenia. Spróbuj ponownie")
                     
-                
+                    
 def choose_action():
-    
     
     action = input(
         "\n \

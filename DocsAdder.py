@@ -167,8 +167,86 @@ class OkazAdder(DocsAdder):
             #   stworzyć nowy gatunek
             #   stworzyć nowy stan
             pass
+class StanAdder(DocsAdder):
+    
+    def __init__(self, path, many=False):
+        
+        collection="Stan"
+        
+        super().__init__(path, collection, many)  
+    
+    def add_to_db(self, db='hodowla', uri="mongodb://localhost:27017/"):
+        
+        juz_istnieja = {}
+        
+        with MongoClient(uri) as client:
+            
+            col = client[db][self.collection]
+            to_pop = []
+            added_names = []
+            nonexistance_gat = []
+            
+            for i in range(len(self.files)):
+                
+                name = self.files[i]["gatunek"]
+                gat = client[db]['Gatunki']
+                
+                count_gat = gat.count_documents({"$or":[{"gatunek_lac":name}, {"gatunek_pl":name}]})
+                
+                if count_gat != 0:
+                    
+                    gatunek_id = gat.find_one({"$or":[{"gatunek_lac":name}, {"gatunek_pl":name}]})['_id']
+                    count = col.count_documents({"gatunek":gatunek_id})
+                    
+                    self.files[i]["gatunek"] = gatunek_id
+                    
+                    if (count > 0) or name in added_names:
+                        
+                        juz_istnieja[self.files[i]["gatunek"]] = self.files[i] 
+                        to_pop.append(i)
+                        self._move_file(self.filenames[i])
+                        
+                    added_names.append(name)
+                
+                else:
+                    
+                    nonexistance_gat.append(name)
+                    
+            for i in range(len(to_pop)):
+                
+                self.files.pop(to_pop[i])
+                
+                # Indeksy do usunięcia dodają się po kolei, czyli wcześniejszy indeks jest zawsze mniejszy od następnych.
+                # Usunięcie elementu z listy powoduje, że indeksy wszystkich następnych elementów zmniejszają się o 1
+                # Wykoanując na raz usunięcie pliku z listy i zmniejszenie o 1 wartości indeksów wszystkich plików do usunięcia,
+                # przy iterajcynym przechodzeniu w pętli przez każdy kolejny element listy to_pop (po to jest range(len), a nie po prostu lista)
+                # zapewnia usunięcie elementów o odpowiednim indeksie.
+                
+                to_pop = list(map(lambda x: x-1, to_pop))
+        
+        if len(added_names) > 0:      
+        
+            print("Stany poniższych gatunków już są w bazie. Jeśli chcesz je zmienić użyj innej opcji.")
 
-class StanActualizer(DocsAdder):
+            for i in juz_istnieja.keys():
+                
+                print(f"\t{i}")  
+                
+        if len(nonexistance_gat) > 0:      
+        
+            print('Poniższych gatunków nie ma jeszcze w bazie. Aby dodać ich stany uzupełnij wpierw kolekcję "Gatunki"')
+
+            for i in nonexistance_gat:
+                
+                print(f"\t{i}")  
+                
+        if len(self.files) > 0:
+                
+            return super().add_to_db(db, uri)
+                
+                
+    
+class StanActualizer():
     
     def __init__(self, id_gat, count, client, file, quantity):
         
@@ -239,8 +317,3 @@ class StanActualizer(DocsAdder):
             {"$inc": good_act_dict}
         )
 
-
-#stan = StanActualizer(1,2,3,{"płeć":"nosex", "stadium":"L1"},5)  
-# adder = GatunekAdder(path="/home/marcinpielwski/MongoDB/MongoDB_terraristic/gat", many=True)
-
-# adder.add_to_db()
