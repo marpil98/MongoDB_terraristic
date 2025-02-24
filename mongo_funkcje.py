@@ -2,7 +2,6 @@ from pprint import pprint
 
 import pymongo
 from pymongo import MongoClient
-from pymongo.errors import CollectionInvalid
 from nltk.metrics.distance import edit_distance
 
 import sys
@@ -14,43 +13,28 @@ from DocsAdder import GatunekAdder, OkazAdder, StanAdder
 db='hodowla'
 uri="mongodb://localhost:27017/"
 
-def creating_collection(db_name:str="hodowla", uri:str="mongodb://localhost:27017/"):
+def creating_collection(collection_name: str, client: MongoClient, db_name:str="hodowla"):
     
     """Creating collection in existing db
-    
     
     Parameters
     ----------
     collection_name : str
         New collection's name
+    client: MongoClient
     db_name : str, optional
         Dtabase's name, where will be created new collection, by default "hodowla"
-    uri : _type_, optional
-        uri to mongo server, by default "mongodb://localhost:27017/"
 
     Raises
     ------
     Exception
         Alternative error info
     """
-    print(__name__)
+
     try:
+        
         collection_name = input("Podaj nazwę nowej kolekcji")
-        
-        with MongoClient(uri) as client:
-                
-            database = client[db_name]
-            names = database.list_collection_names()
-            database.create_collection(name=collection_name)
-            print(f'Kolekcja "{collection_name}" została utworzona w bazie "{db_name}"')
-        
-        
-        print('Zamknięto połączenie')
-        
-    
-    except CollectionInvalid:
-        
-        print(names)
+        names = database.list_collection_names()
         
         if collection_name in names:
             
@@ -75,8 +59,9 @@ def creating_collection(db_name:str="hodowla", uri:str="mongodb://localhost:2701
         
         else:
             
-            raise
-                
+            database = client[db_name]
+            database.create_collection(name=collection_name)
+            print(f'Kolekcja "{collection_name}" została utworzona w bazie "{db_name}"')
         
     except Exception as e:
         
@@ -85,7 +70,7 @@ def creating_collection(db_name:str="hodowla", uri:str="mongodb://localhost:2701
         )
 
 
-def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost:27017/"):
+def drop_collection(collection_name: str, client: MongoClient, db_name="hodowla"):
     
     """Dropping existance colletion
 
@@ -93,28 +78,25 @@ def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost
     ----------
     collection_name : str
         Collection's name which user want to drop
+    client: MongoClient
     db_name : str, optional
         Name of db where should be collection to drop, by default "hodowla"
-    uri : str, optional
-        URI to mongo, by default "mongodb://localhost:27017/"
     """
     
     print("dropping")
     success = 1
+                
+    database = client[db_name]
+    names = database.list_collection_names()
     
-    with MongoClient(uri) as client:
-                
-            database = client[db_name]
-            names = database.list_collection_names()
-            
-            if collection_name in names:
-                
-                database.drop_collection(collection_name)
-                print(f"Poprawnie usunięto kolekcję '{collection_name}'")
-                
-            else:
-                
-                success = 0
+    if collection_name in names:
+        
+        database.drop_collection(collection_name)
+        print(f"Poprawnie usunięto kolekcję '{collection_name}'")
+        
+    else:
+        
+        success = 0
                 
     if not success:
         
@@ -143,10 +125,6 @@ def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost
                 _exit()
                 
                 
-        
-            
-            
-            
 def prepare_new_docs():
     
     """Preparing new documents, which will added to db
@@ -246,7 +224,8 @@ def prepare_new_docs():
     pprint(docs)
     
     return docs
-   
+
+
 def prepare_new_docs_ffile():
     
     """Preparing new documents, which will added to db
@@ -301,9 +280,7 @@ def prepare_new_docs_ffile():
             inp = input("Podaj go jeszcze raz: ")
             inp =_transforming_input(inp)
             
-            
         return inp   
-    
     
     docs = {
         'G':[],
@@ -345,7 +322,8 @@ def prepare_new_docs_ffile():
     
     return docs
                 
-def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
+                
+def add_docs_to_db(docs: list, client: MongoClient, db='hodowla'):
     
     """Adding new documents to collection
 
@@ -358,65 +336,64 @@ def add_docs_to_db(docs, db='hodowla', uri="mongodb://localhost:27017/"):
     uri : str, optional
         URI to mongo, by default "mongodb://localhost:27017/"
     """
+
+    db = client[db]
+    gatunki = db['Gatunki']
+    okazy = db['okazy']
     
-    with MongoClient(uri) as client:
+    for i in docs.keys():
         
-        db = client[db]
-        gatunki = db['Gatunki']
-        okazy = db['okazy']
-        for i in docs.keys():
+        match i:
             
-            match i:
+            case 'G':
                 
-                case 'G':
+                if len(docs['G'])>0:
                     
-                    if len(docs['G'])>0:
+                    gatunki.insert_many(docs['G'])
+                
+                else:
+                    
+                    print("Brak gatunków do dodania")
+                
+            case 'O':
+                
+                if len(docs['O'])>0:
+                    
+                    okazy.insert_many(docs['O'])
+                    
+                else:
+                    
+                    print("Brak okazów do dodania")
+                
+            case 'I':
+                
+                def nowa_kolekcja():
+                    
+                    nowa = input("Czy chcesz utworzyć nową kolekcję? (y/n) ")
+                    
+                    if nowa == 'y':
                         
-                        gatunki.insert_many(docs['G'])
+                        nazwa = input("Podaj nazwę nowej kolekcji")
+                        creating_collection(nazwa)
+                        new_coll = db[nazwa]
+                        new_coll.insert_many(docs['I'])
                     
+                    elif nowa == 'n':
+                        
+                        print("To po cholerę dodajesz te dokumenty? Kończę pracę.")
+                        
                     else:
                         
-                        print("Brak gatunków do dodania")
-                    
-                case 'O':
-                    
-                    if len(docs['O'])>0:
-                        
-                        okazy.insert_many(docs['O'])
-                        
-                    else:
-                        
-                        print("Brak okazów do dodania")
-                    
-                case 'I':
-                    
-                    def nowa_kolekcja():
-                        
-                        nowa = input("Czy chcesz utworzyć nową kolekcję? (y/n) ")
-                        
-                        if nowa == 'y':
-                            
-                            nazwa = input("Podaj nazwę nowej kolekcji")
-                            creating_collection(nazwa)
-                            new_coll = db[nazwa]
-                            new_coll.insert_many(docs['I'])
-                        
-                        elif nowa == 'n':
-                            
-                            print("To po cholerę dodajesz te dokumenty? Kończę pracę.")
-                            
-                        else:
-                            
-                            print("Nie wiem co chcesz zrobić")
-                            nowa_kolekcja()
-                            
-                    if len(docs['I']) > 0:
-                        
+                        print("Nie wiem co chcesz zrobić")
                         nowa_kolekcja()
                         
-                    else:
-                        
-                        print("Brak innych dokumentów do dodania")
+                if len(docs['I']) > 0:
+                    
+                    nowa_kolekcja()
+                    
+                else:
+                    
+                    print("Brak innych dokumentów do dodania")
                         
                         
 def colections_names(db):
@@ -424,77 +401,74 @@ def colections_names(db):
     pprint(db.list_collection_names())
 
     
-def find(db='hodowla', uri="mongodb://localhost:27017/"):
+def find(client: MongoClient, db='hodowla'):
     
     print("Wybierz nazwę kolekcji z podanych poniżej: ")
     
-    with MongoClient(uri) as client:
-        
-        db = client[db]
-        colections_names(db)
-        col = input()
-        collection = db[col]
-        
-        query = eval(input("Podaj query wyszukiwania: "))
-        
-        result = collection.find(query)
-        
-        for f in result:  
-            
-            pprint(f)
-        
-
-def update_stan(gatunek, plec, stadium, ilosc):
+    db = client[db]
+    colections_names(db)
+    col = input()
+    collection = db[col]
     
-    with MongoClient("mongodb://localhost:27017/") as clietn:
+    query = eval(input("Podaj query wyszukiwania: "))
+    
+    result = collection.find(query)
+    
+    for f in result:  
         
-        stan = clietn['hodowla']["Stan"]
-        gat_col = clietn['hodowla']["Gatunek"]
+        pprint(f)
+    
+
+def update_stan(gatunek, client: MongoClient, plec: str, stadium: str, ilosc: int):
+    
         
-        if stan.count_documents({"gatunek":gatunek}) == 0:
+    stan = clietn['hodowla']["Stan"]
+    gat_col = clietn['hodowla']["Gatunek"]
+    
+    if stan.count_documents({"gatunek":gatunek}) == 0:
+        
+        dodawanie = input("Tego gatunku nie ma chyba w bazie. Czy chcesz go dodać? (y/n) ")
+        
+        def _dodawnie(dodawanie):
             
-            dodawanie = input("Tego gatunku nie ma chyba w bazie. Czy chcesz go dodać? (y/n) ")
-            
-            def _dodawnie(dodawanie):
+            if dodawanie == 'y':
                 
-                if dodawanie == 'y':
-                    
-                    gat = Gatunek() # W tym momencie tworzy się również nowy dokument stanu
-                    gat_col.insert_one(gat.pola)
-                    return 1
+                gat = Gatunek() # W tym momencie tworzy się również nowy dokument stanu
+                gat_col.insert_one(gat.pola)
+                return 1
+            
+            elif dodawanie == 'n':
                 
-                elif dodawanie == 'n':
-                    
-                    print("ok. to nie.")
-                    return 0
-                    
-                else:
-                    
-                    print("Nie rozpoznano polecenia")
-                    dodawanie = input("Czy chcesz dodać ten gatunek do bazy? (y/n) ")
-                    _dodawnie(dodawanie)
-            
-            czy_gat_w_db = _dodawnie(dodawanie)
+                print("ok. to nie.")
+                return 0
+                
+            else:
+                
+                print("Nie rozpoznano polecenia")
+                dodawanie = input("Czy chcesz dodać ten gatunek do bazy? (y/n) ")
+                _dodawnie(dodawanie)
         
-        else:
-            
-            czy_gat_w_db = 1    
-                    
-        if czy_gat_w_db:
-            
-            id_gat = gat_col.find_one({"$or" : [{"gat_lac" : gatunek}, {"gat_pl" : gatunek}]})
-            
-            stan.update_one(
-                {"gatunek":id_gat}, 
-                    {
-                        '$inc' : {
-                            '.'.join([plec, stadium]) : ilosc
-                            }
+        czy_gat_w_db = _dodawnie(dodawanie)
+    
+    else:
+        
+        czy_gat_w_db = 1    
+                
+    if czy_gat_w_db:
+        
+        id_gat = gat_col.find_one({"$or" : [{"gat_lac" : gatunek}, {"gat_pl" : gatunek}]})
+        
+        stan.update_one(
+            {"gatunek":id_gat}, 
+                {
+                    '$inc' : {
+                        '.'.join([plec, stadium]) : ilosc
                         }
-                    )
-        else:
-            
-            return 1
+                    }
+                )
+    else:
+        
+        return 1
             
 def delete_docs(client, collection, conditions, db='hodowla'):
     
@@ -512,46 +486,37 @@ def cond_find_gat(gatunek):
     return cond
 
 
-def delete_gat(gatunek):
-    
-    with MongoClient() as client:
-                                
-        res = client['hodowla']['Gatunki'].find({})
-                    
-        cond = cond_find_gat(gatunek)
-        result = delete_docs(client=client, collection="Gatunki", conditions=cond)
-        result = result.deleted_count
-
-        if result == 0:
-            
-            # wykaz = []
-            
-            raise Exception("Nie odnaleziono takiego gatunku Upewnij się że podałeś odpowiednią nazwę i spróbuj jeszcze raz. ")
-            
-            # for i in res:
+def delete_gat(gatunek, client: MongoClient):
+                                    
+    res = client['hodowla']['Gatunki'].find({})
                 
-            #     n=i['gatunek_lac']
-            #     print(n)
-            #     wykaz.append(n)
+    cond = cond_find_gat(gatunek)
+    result = delete_docs(client=client, collection="Gatunki", conditions=cond)
+    result = result.deleted_count
+
+    if result == 0:
+        
+        # wykaz = []
+        
+        raise Exception("Nie odnaleziono takiego gatunku Upewnij się że podałeś odpowiednią nazwę i spróbuj jeszcze raz. ")
+        
+        # for i in res:
+            
+        #     n=i['gatunek_lac']
+        #     print(n)
+        #     wykaz.append(n)
 
 
-def delete_stan(gatunek):
+def delete_stan(gatunek, client: MongoClient):
     
     try:
         
-        with MongoClient(uri) as client:
-            
-            gat = client['hodowla']['Gatunki']
-            stan = client['hodowla']['Stan']
-            
-            cond_gat = cond_find_gat(gatunek)
-            
-            id_gat = gat.find_one(cond_gat)
-            
-            id_gat = id_gat['_id']
-            
-            cond_stan = {"gatunek" : id_gat}
-            delete_docs(client, "Stan", cond_stan)
+        gat = client['hodowla']['Gatunki']        
+        cond_gat = cond_find_gat(gatunek)
+        id_gat = gat.find_one(cond_gat)
+        id_gat = id_gat['_id']
+        cond_stan = {"gatunek" : id_gat}
+        delete_docs(client, "Stan", cond_stan)
             
         print(f"Usunięto stan gatunku {gatunek}")
         
@@ -559,19 +524,17 @@ def delete_stan(gatunek):
         
         raise
     
-def delete_okaz(imie):
+def delete_okaz(imie: str, client: MongoClient):
     
-    try:
-        with MongoClient(uri) as client:
-            
-            okaz = client['hodowla']['Okazy']
-            res = okaz.find({"imię" : imie})
-            
-            plec = res['plec']
-            stadium = res['stadium']
-            gatunek = res['gatunek']
-            gat = client['hodowla']['Gatunki']
-            gatunek = gat.find(cond_find_gat(gatunek))['gatunek_lac']
+    try:            
+        okaz = client['hodowla']['Okazy']
+        res = okaz.find({"imię" : imie})
+        
+        plec = res['plec']
+        stadium = res['stadium']
+        gatunek = res['gatunek']
+        gat = client['hodowla']['Gatunki']
+        gatunek = gat.find(cond_find_gat(gatunek))['gatunek_lac']
         
         update_stan(gatunek=gatunek, plec=plec, stadium=stadium, ilosc=-1)
     
@@ -579,7 +542,7 @@ def delete_okaz(imie):
         
         raise
     
-def usuwanie_dokumentow():
+def usuwanie_dokumentow(client):
     
     run = 1
             
@@ -594,7 +557,7 @@ def usuwanie_dokumentow():
                 try:
                     
                     gat = input("Podaj nazwę gatunku")
-                    delete_gat(gat)
+                    delete_gat(gat, client)
                     
                     run = 0
                         
@@ -607,7 +570,7 @@ def usuwanie_dokumentow():
                 try:
                     
                     imie = input("Podaj imię usuwanego okazu: ")
-                    delete_okaz(imie)
+                    delete_okaz(imie, client)
                     
                     run = 0
                     
@@ -620,7 +583,7 @@ def usuwanie_dokumentow():
                 try:
                     
                     gat = input("Podaj nazwę gatunku")
-                    delete_stan(gat)
+                    delete_stan(gat, client)
                     
                     run = 0
                         
@@ -637,7 +600,7 @@ def usuwanie_dokumentow():
                 print("Nie rozpoznao polecenia. Spróbuj ponownie")
                     
                     
-def choose_action():
+def choose_action(client):
     
     action = input(
         "\n \
@@ -656,7 +619,7 @@ def choose_action():
         
         case "1": 
             
-            find()
+            find(client=client)
             
         case "2": 
             
@@ -664,12 +627,12 @@ def choose_action():
             
         case "3": 
             
-            creating_collection()
+            creating_collection(client=client)
             
         case "4": 
             
             docs = prepare_new_docs()
-            add_docs_to_db(docs)
+            add_docs_to_db(docs, client)
             
         case "5": 
             
@@ -684,11 +647,11 @@ def choose_action():
             il = input("Podaj ilosc: ")
             new_stad = str(int(stad[1:])+ 1)
             
-            ret = update_stan(gat, plec, new_stad, il)
+            ret = update_stan(gat, client, plec, new_stad, il)
             
             if ret is None:
                 
-                ret = update_stan(gat, plec, stad, -il)
+                ret = update_stan(gat, client, plec, stad, -il)
                 
             if ret is not None:
                 
@@ -705,7 +668,7 @@ def choose_action():
             stad = input("Podaj poprzednie stadium: ")
             il = input("Podaj poprzednie ilosc: ")
             
-            update_stan(gat, plec, stad, -il)
+            update_stan(gat, client, plec, stad, -il)
             
         case "8":
         
@@ -714,11 +677,11 @@ def choose_action():
             stad = input("Podaj poprzednie stadium: ")
             il = input("Podaj ilosc: ")
             
-            update_stan(gat, plec, stad, il)
+            update_stan(gat, client, plec, stad, il)
             
         case "9": 
             
-            usuwanie_dokumentow()
+            usuwanie_dokumentow(client)
             
         case "10": return 0
         
@@ -733,7 +696,9 @@ if __name__ == "__main__":
 
     while flag != 0:
         
-        flag = choose_action()
+        with MongoClient() as client:
+            
+            flag = choose_action(client)
         
     print("Dzięki za współpracę. Na razie!")
     
