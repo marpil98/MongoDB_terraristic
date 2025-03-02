@@ -94,7 +94,7 @@ class DocsAdder():
                 
                 doc.pop(i)
         
-    def add_to_db(self, db='hodowla', uri="mongodb://localhost:27017/"):
+    def add_to_db(self, client, db='hodowla'):
         
         try:
             
