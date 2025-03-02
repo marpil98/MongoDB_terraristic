@@ -1,4 +1,6 @@
 from pprint import pprint
+import logging 
+import traceback
 
 import pymongo
 from pymongo import MongoClient
@@ -12,6 +14,25 @@ from DocsAdder import GatunekAdder, OkazAdder, StanAdder
 
 db='hodowla'
 uri="mongodb://localhost:27017/"
+
+CUSTOM_INFO = 25
+logging.addLevelName(CUSTOM_INFO, "CUSTOM")
+logger = logging.getLogger("main")
+logger.setLevel(logging.DEBUG)
+
+handler_file = logging.FileHandler("logs/main.log")
+handler_file.setLevel(logging.DEBUG)
+
+formatter_file = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+handler_file.setFormatter(formatter_file)
+
+handler_stream = logging.StreamHandler()
+handler_stream.setLevel(logging.DEBUG)
+formatter_stream = logging.Formatter("%(levelname)s: %(message)s")
+handler_stream.setFormatter(formatter_stream)
+
+logger.addHandler(handler_stream)
+logger.addHandler(handler_file)
 
 def creating_collection(collection_name: str, client: MongoClient, db_name:str="hodowla"):
     
@@ -690,15 +711,21 @@ def choose_action(client):
         
 if __name__ == "__main__":
     
+    logger.info("Program uruchomił się")
     print("Witaj oto baza danych hodowli. Podaj numer akcji, jaką chcesz wykonać: ")
         
     flag = 1
-
     while flag != 0:
-        
-        with MongoClient() as client:
+        try:
+            with MongoClient() as client:
+                
+                flag = choose_action(client)
+                
+        except:
             
-            flag = choose_action(client)
+            logger.error("Pojawił się nieznany bład")
+            raise
         
     print("Dzięki za współpracę. Na razie!")
+    logger.info("Program zakończył działanie")
     

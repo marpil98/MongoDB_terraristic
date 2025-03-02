@@ -1,6 +1,8 @@
 import os 
 import json
 import shutil
+import logging 
+import traceback
 
 from pymongo import MongoClient
 
@@ -9,6 +11,32 @@ from pprint import pprint
 from documents import Stan 
 
 # Below classes will be using to adding documents from files
+
+class NoTracebackFilter(logging.Filter):
+    
+    def filter(self, record):
+        
+        record.exc_info = None
+        return True
+    
+    
+logger = logging.getLogger("logger")
+logger.setLevel(logging.DEBUG)
+
+handler_file = logging.FileHandler("logs/add_fom_file.log")
+formatter_file = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+handler_file.setFormatter(formatter_file)
+handler_file.setLevel(logging.DEBUG)
+
+handler_stream = logging.StreamHandler()
+formatter_file = logging.Formatter("%(levelname)s: %(message)s")
+handler_file.setFormatter(formatter_file)
+handler_stream.setLevel(logging.DEBUG)
+handler_stream.addFilter(NoTracebackFilter())
+
+
+logger.addHandler(handler_file)
+logger.addHandler(handler_stream)
 class DocsAdder():
     
     def __init__(self, path, collection, many=False):
@@ -25,23 +53,38 @@ class DocsAdder():
             for file in os.listdir(path):
                 
                 if file.endswith(".json"):
-                    
+
                     with open(os.path.join(self.path, file), 'r', encoding="utf-8") as f:
                         
                         doc = json.load(f)
                         self._clean_doc(doc)
                         files.append(doc)
 
-                    self.filenames.append(file)    
+                    self.filenames.append(file)
 
             self.files = files
             
+            if len(self.files):
+                
+                msg = f"Folder {self.path} jest pusty"
+                logging.error(msg)
+                
+                
         else:
             
-            with open(self.path, 'r', encoding="utf-8") as f:
+            try:
                 
-                self.files = [json.load(f)]
+                with open(self.path, 'r', encoding="utf-8") as f:
+                    
+                    self.files = [json.load(f)]
+            
+            except FileNotFoundError:
                 
+                msg = f"Nie znaleziono pliku {self.path}"
+                logger.error(msg)
+                
+            
+            
     def _clean_doc(self, doc):
         
         keys = list(doc.keys())
@@ -59,28 +102,40 @@ class DocsAdder():
                 
                 col = client[db][self.collection]
                 col.insert_many(self.files)
-
+                logger.info(f"Pliki do kolekcji {self.colletion} zostały dodane poprawnie")
+                
             for i in self.filenames:
                 
                 self._move_file(i)
                 
         except Exception as e:
             
+            logger.error(f"Problem z dodawaniem do kolokecji: {self.collection}")
             print(e)
             return 0
         
     def _move_file(self, name):
         
-        dest_folder = os.path.join(self.path, 'dodane')
+        try:
+            
+            dest_folder = os.path.join(self.path, 'dodane')
+                    
+            if not os.path.exists(dest_folder):
                 
-        if not os.path.exists(dest_folder):
+                os.mkdir(path=dest_folder)
+                
+            source = os.path.join(self.path, name)
+            dest = os.path.join(dest_folder, name)
             
-            os.mkdir(path=dest_folder)
+            shutil.move(source, dest)
             
-        source = os.path.join(self.path, name)
-        dest = os.path.join(dest_folder, name)
+        except PermissionError:
+            
+            msg = f"Plik {name} jest aktualnie używany. Upewnij się, że przed próbą \
+                dodania pliku do bazy, wyłączyłeś wszystkie narzędzia pracujące na tym \
+                pliku"
+            logger.error()
         
-        shutil.move(source, dest)
         
 class GatunekAdder(DocsAdder):
     
@@ -133,6 +188,7 @@ class GatunekAdder(DocsAdder):
             
             return super().add_to_db(db, uri)
     
+    
 class OkazAdder(DocsAdder):
     
     def __init__(self, path, many=False):
@@ -148,25 +204,27 @@ class OkazAdder(DocsAdder):
             
             gat = client[db]["Gatunek"]    
             count = gat.count_documents({"gatunek_lac":file["gatunek_lac"]})
-            plec = file['plec']
-            stadium = file['stadium']
+            gat_id = client[db]["Gatunek"]["_id"]
+            if count > 0:
                 
+                plec = file['plec']
+                stadium = file['stadium']
                 
-    def _update_stan(self):
+    def _update_stan(self, client, id, file):
         
         gatunki = []
         
-        for i in self.files:
-            
-            # Znaleźć nazwę gatunku w pliku
-            gatunki.append(i['gatunek_lac'])
-            # Sprawdzić czy już jest stan tego gatunku podany
-            # Jeśli tak:
-            #   zaktualizować
-            # w przeciwnym wypadku:
-            #   stworzyć nowy gatunek
-            #   stworzyć nowy stan
-            pass
+        # Znaleźć nazwę gatunku w pliku
+        nazwa_gat = file['gatunek_lac']
+        gatunki.append(nazwa_gat)
+        
+        # Sprawdzić czy już jest stan tego gatunku podany
+        count = client['hodowla']["Stan"].count_documents({"gatunek":id})
+    
+        stan_act = StanActualizer(id, count, client, file, 1)
+        stan_act.actualize()
+
+        
 class StanAdder(DocsAdder):
     
     def __init__(self, path, many=False):
@@ -245,7 +303,6 @@ class StanAdder(DocsAdder):
             return super().add_to_db(db, uri)
                 
                 
-    
 class StanActualizer():
     
     def __init__(self, id_gat, count, client, file, quantity):
@@ -261,18 +318,19 @@ class StanActualizer():
         
     def actualize(self):
         
-        if self.count > 0:
                             
-            stan = self.client['hodowla']["Stan"]  
+        stan = self.client['hodowla']["Stan"]  
+        
+        if self.count > 0:
             
-            if self.count > 0:
-                print("Dodać aktualizację stanu")
-                # aktualizuj stan
-            else:
+            print("Dodać aktualizację stanu")
+            self._actualization()
+            
+        else:
 
-                values = self._create_vals()
-                st = Stan(values)
-                self.client['hodowla']['Stan'].insert_one(st.pola)
+            values = self._create_vals()
+            st = Stan(values)
+            self.client['hodowla']['Stan'].insert_one(st.pola)
                 
     def _create_vals(self):
         
@@ -302,7 +360,6 @@ class StanActualizer():
         klucze = ["gatunek", "samce", "samice", "nosex"]
         act_dict = dict(zip(klucze, values))
         act_dict.pop('gatunek')
-        print(act_dict)
         good_act_dict = {}
         for i in act_dict:
             
