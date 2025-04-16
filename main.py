@@ -1,12 +1,11 @@
 import time
 
-from loggers import main_logger, db_conn_logger
+from loggers import main_logger
 from collections_fun import find, creating_collection, update_stan
 from documents_fun import prepare_new_docs, add_docs_to_db, prepare_new_docs_ffile
 from documents_fun import usuwanie_dokumentow
 
 m_log = main_logger()
-db_log = db_conn_logger()
 
 def choose_action():
     
