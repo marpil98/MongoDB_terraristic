@@ -1,6 +1,13 @@
+import time
+
+from loggers import main_logger, db_conn_logger
 from collections_fun import find, creating_collection, update_stan
 from documents_fun import prepare_new_docs, add_docs_to_db, prepare_new_docs_ffile
 from documents_fun import usuwanie_dokumentow
+
+m_log = main_logger()
+db_log = db_conn_logger()
+
 def choose_action():
     
     action = input(
@@ -11,8 +18,8 @@ def choose_action():
         4 - Dodanie dokumentu z palca\n \
         5 - Dodanie dokumentu z plików\n \
         6 - Wylinka\n \
-        7 - Śmierć\Sprzedaż\n \
-        8 - Kupno\Klucie\n \
+        7 - Śmierć\\Sprzedaż\n \
+        8 - Kupno\\Klucie\n \
         9 - Usuń dokument\n \
         'q' - Wyjście z bazy\n")
     
@@ -20,29 +27,35 @@ def choose_action():
         
         case "1": 
             
+            m_log.info("Wyszukiwanie")
             find()
             return 1
         
         case "2": 
             
+            m_log.info("Aktualizacja danych")
             print("Brak funkcjonalności")
             
         case "3": 
             
+            m_log.info("Stworzenie nowej kolekcji")
             creating_collection()
             
         case "4": 
             
+            m_log.info("Dodanie dokumentu z palca")
             docs = prepare_new_docs()
             add_docs_to_db(docs)
             
         case "5": 
             
+            m_log.info("Dodanie dokumentu z plików")
             docs = prepare_new_docs_ffile()
             
         case "6": 
             #TO DO: sprawdzenie, czy gatunek jest w bazie powinno rzucać info od razu, nie dopiero po podaniu reszty informacji
 
+            m_log.info("Wylinka")
             gat = input("Podaj gatunek: ")
             plec = input("Podaj plec: ")
             stad = input("Podaj poprzednie stadium: ")
@@ -65,6 +78,7 @@ def choose_action():
             
         case "7":
         
+            m_log.info("Śmierć\\Sprzedaż")
             gat = input("Podaj gatunek: ")
             plec = input("Podaj plec: ")
             stad = input("Podaj poprzednie stadium: ")
@@ -74,6 +88,7 @@ def choose_action():
             
         case "8":
         
+            m_log.info("Kupno\\Klucie")
             gat = input("Podaj gatunek: ")
             plec = input("Podaj plec: ")
             stad = input("Podaj poprzednie stadium: ")
@@ -83,21 +98,39 @@ def choose_action():
             
         case "9": 
             
+            m_log.info("Usuń dokument")
             usuwanie_dokumentow()
             
-        case "q": return 0
+        case "q": 
+        
+            m_log.info("Wyjście z bazy")
+            return 0
         
         case _: print("Nie zrozumiano polecenia. Spróbuj ponownie")
         
 if __name__ == "__main__":
-
     
-    print("Witaj oto baza danych hodowli. Podaj numer akcji, jaką chcesz wykonać: ")
         
-    flag = 1
+        t0 = time.time()
+        m_log.info("Uruchomienie aplikacji")
+        print("Witaj oto baza danych hodowli. Podaj numer akcji, jaką chcesz wykonać: ")
+            
+        flag = 1
 
-    while flag != 0:
+        while flag != 0:
+            
+            try:
+                
+                flag = choose_action()
+            
+            except Exception as e:
         
-        flag = choose_action()
-        
-    print("Dzięki za współpracę. Na razie!")
+                m_log.error("Wystąpił błąd", exc_info=True)
+            
+        print("Dzięki za współpracę. Na razie!")
+        t1 = time.time()
+        t = t1 - t0
+        m_log.info(f"Program zakończył działanie w czasie {t//60}min {t%60}s")
+    
+    
+    

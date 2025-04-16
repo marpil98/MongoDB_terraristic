@@ -1,3 +1,4 @@
+import logging
 from pprint import pprint
 
 import pymongo
@@ -10,9 +11,12 @@ sys.path.insert(1, "MongoDB_terraristic")
 
 from documents import Document, Gatunek, Okaz
 from DocsAdder import GatunekAdder, OkazAdder, StanAdder
+from loggers import db_conn_logger
 
 db='hodowla'
 uri="mongodb://localhost:27017/"
+
+conn_loger = db_conn_logger()
 
 def creating_collection(db_name:str="hodowla", uri:str="mongodb://localhost:27017/"):
     
@@ -33,17 +37,23 @@ def creating_collection(db_name:str="hodowla", uri:str="mongodb://localhost:2701
     Exception
         Alternative error info
     """
-    print(__name__)
     try:
-        collection_name = input("Podaj nazwę nowej kolekcji")
+        collection_name = input("Podaj nazwę nowej kolekcji: ")
         
-        with MongoClient(uri) as client:
+        if collection_name != 'q':
+            
+            
+            with MongoClient(uri) as client:
+                    
+                    
+                conn_loger.info("Polaczono z baza")
+                database = client[db_name]
+                names = database.list_collection_names()
+                database.create_collection(name=collection_name)
+                print(f'Kolekcja "{collection_name}" została utworzona w bazie "{db_name}"')
                 
-            database = client[db_name]
-            names = database.list_collection_names()
-            database.create_collection(name=collection_name)
-            print(f'Kolekcja "{collection_name}" została utworzona w bazie "{db_name}"')
-        
+            conn_loger.info("Rozlaczenie bazy")
+
         
         print('Zamknięto połączenie')
         
@@ -104,6 +114,7 @@ def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost
     
     with MongoClient(uri) as client:
                 
+            conn_loger.info("Polaczono z baza")
             database = client[db_name]
             names = database.list_collection_names()
             
@@ -115,7 +126,9 @@ def drop_collection(collection_name, db_name="hodowla", uri="mongodb://localhost
             else:
                 
                 success = 0
-                
+    
+    conn_loger.info("Rozlaczenie bazy")
+            
     if not success:
         
         def _exit():
@@ -155,6 +168,7 @@ def find(db='hodowla', uri="mongodb://localhost:27017/"):
         
         with MongoClient(uri) as client:
             
+            conn_loger.info("Polaczono z baza")
             db = client[db]
             colections_names(db)
             col = input()
@@ -175,7 +189,9 @@ def find(db='hodowla', uri="mongodb://localhost:27017/"):
                 for f in result:  
                     
                     pprint(f)
-                
+                    
+        conn_loger.info("Rozlaczenie bazy")
+        
     except NameError as e: 
         
         print("Podano złą nazwę kolekcji, lub błędne query")
@@ -185,6 +201,7 @@ def update_stan(gatunek, plec, stadium, ilosc):
     
     with MongoClient("mongodb://localhost:27017/") as clietn:
         
+        conn_loger.info("Polaczono z baza")
         stan = clietn['hodowla']["Stan"]
         gat_col = clietn['hodowla']["Gatunek"]
         
@@ -232,7 +249,10 @@ def update_stan(gatunek, plec, stadium, ilosc):
         else:
             
             return 1
-            
+    
+    conn_loger.info("Rozlaczenie bazy")
+    
+    
 def delete_docs(client, collection, conditions, db='hodowla'):
     
     coll = client[db][collection]
@@ -253,6 +273,7 @@ def delete_gat(gatunek):
     
     with MongoClient() as client:
                                 
+        conn_loger.info("Polaczono z baza")
         res = client['hodowla']['Gatunki'].find({})
                     
         cond = cond_find_gat(gatunek)
@@ -271,6 +292,8 @@ def delete_gat(gatunek):
             #     print(n)
             #     wykaz.append(n)
 
+    conn_loger.info("Rozlaczenie bazy")
+    
 
 def delete_stan(gatunek):
     
@@ -278,6 +301,7 @@ def delete_stan(gatunek):
         
         with MongoClient(uri) as client:
             
+            conn_loger.info("Polaczono z baza")
             gat = client['hodowla']['Gatunki']
             stan = client['hodowla']['Stan']
             
@@ -290,6 +314,7 @@ def delete_stan(gatunek):
             cond_stan = {"gatunek" : id_gat}
             delete_docs(client, "Stan", cond_stan)
             
+        conn_loger.info("Rozlaczenie bazy")
         print(f"Usunięto stan gatunku {gatunek}")
         
     except:
@@ -299,8 +324,10 @@ def delete_stan(gatunek):
 def delete_okaz(imie):
     
     try:
+        
         with MongoClient(uri) as client:
             
+            conn_loger.info("Polaczono z baza")
             okaz = client['hodowla']['Okazy']
             res = okaz.find({"imię" : imie})
             
@@ -310,6 +337,7 @@ def delete_okaz(imie):
             gat = client['hodowla']['Gatunki']
             gatunek = gat.find(cond_find_gat(gatunek))['gatunek_lac']
         
+        conn_loger.info("Rozlaczenie bazy")
         update_stan(gatunek=gatunek, plec=plec, stadium=stadium, ilosc=-1)
     
     except:
