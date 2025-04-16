@@ -39,16 +39,15 @@ logger.addHandler(handler_file)
 logger.addHandler(handler_stream)
 class DocsAdder():
     
-    def __init__(self, path, collection, many=False):
+    def __init__(self, path, collection):
         
         self.path = path
         self.collection = collection
-        self.many = many
         self.filenames = []
         
-        if many:
-            
-            files = []
+        files = []
+        
+        if  os.path.isdir(path):
             
             for file in os.listdir(path):
                 
@@ -63,25 +62,26 @@ class DocsAdder():
                     self.filenames.append(file)
 
             self.files = files
-            
-            if len(self.files):
-                
-                msg = f"Folder {self.path} jest pusty"
-                logging.error(msg)
-                
-                
+        
         else:
             
-            try:
+            if file.endswith(".json"):
                 
-                with open(self.path, 'r', encoding="utf-8") as f:
+                with open(os.path, 'r', encoding="utf-8") as f:
+                            
+                    doc = json.load(f)
+                    self._clean_doc(doc)
+                    files.append(doc)
                     
-                    self.files = [json.load(f)]
-            
-            except FileNotFoundError:
+            else:
                 
-                msg = f"Nie znaleziono pliku {self.path}"
-                logger.error(msg)
+                msg = f"plik {self.path} ma zły format"
+                logging.error(msg, exc_info=True)
+                
+        if len(self.files) < 1:
+            
+            msg = f"Folder {self.path} jest pusty"
+            logging.error(msg, exc_info=True)
                 
             
             
@@ -94,15 +94,12 @@ class DocsAdder():
                 
                 doc.pop(i)
         
-    def add_to_db(self, client, db='hodowla'):
+    def add_to_db(self):
         
         try:
             
-            with MongoClient(uri) as client:
-                
-                col = client[db][self.collection]
-                col.insert_many(self.files)
-                logger.info(f"Pliki do kolekcji {self.colletion} zostały dodane poprawnie")
+            self.collection.insert_many(self.files)
+            logger.info(f"Pliki do kolekcji {self.colletion.name} zostały dodane poprawnie")
                 
             for i in self.filenames:
                 
@@ -110,7 +107,7 @@ class DocsAdder():
                 
         except Exception as e:
             
-            logger.error(f"Problem z dodawaniem do kolokecji: {self.collection}")
+            logger.error(f"Problem z dodawaniem do kolokecji: {self.collection}", exc_info=True)
             print(e)
             return 0
         
@@ -134,38 +131,37 @@ class DocsAdder():
             msg = f"Plik {name} jest aktualnie używany. Upewnij się, że przed próbą \
                 dodania pliku do bazy, wyłączyłeś wszystkie narzędzia pracujące na tym \
                 pliku"
-            logger.error()
+            logger.error(msg, exc_info=True)
         
         
 class GatunekAdder(DocsAdder):
     
-    def __init__(self, path, many=False):
+    def __init__(self, path, client):
         
-        collection="Gatunki"
-        super().__init__(path, collection, many)    
+        collection=client['hodowla']["Gatunki"]
+        super().__init__(path, collection)    
         
-    def add_to_db(self, db='hodowla', uri="mongodb://localhost:27017/"):
+    def add_to_db(self):
         # Trzeba sprawdzić, czy gatunek już istnieje w bazie
+        
         juz_istnieja = {}
         
-        with MongoClient(uri) as client:
+        to_pop = []
+        added_names = []
+        print(len(self.files))
+        for i in range(len(self.files)):
             
-            col = client[db][self.collection]
-            to_pop = []
-            added_names = []
-            for i in range(len(self.files)):
+            name = self.files[i]["gatunek_lac"]
+            count = self.collection.count_documents({"gatunek_lac": name})
+            
+            if (count > 0) or name in added_names:
                 
-                name = self.files[i]["gatunek_lac"]
-                count = col.count_documents({"gatunek_lac":name})
+                juz_istnieja[self.files[i]["gatunek_lac"]] = self.files[i] 
+                to_pop.append(i)
+                self._move_file(self.filenames[i])
                 
-                if (count > 0) or name in added_names:
-                    
-                    juz_istnieja[self.files[i]["gatunek_lac"]] = self.files[i] 
-                    to_pop.append(i)
-                    self._move_file(self.filenames[i])
-                    
-                added_names.append(name)
-                    
+            added_names.append(name)
+                
             for i in range(len(to_pop)):
                 
                 self.files.pop(to_pop[i])
@@ -186,31 +182,28 @@ class GatunekAdder(DocsAdder):
         
         if len(self.files) > 0:
             
-            return super().add_to_db(db, uri)
+            return super().add_to_db()
     
     
 class OkazAdder(DocsAdder):
     
-    def __init__(self, path, many=False):
+    def __init__(self, path, client):
         
-        collection="Okazy"
-        
-        super().__init__(path, collection, many)  
+        self.client=client
+        collection=client['hodowla']["Okazy"]        
+        super().__init__(path, collection)  
     
-    def _check_gat(file, existance_species=[], nonexistance_species=[], db='hodowla', uri="mongodb://localhost:27017/"):
+    def _check_gat(self, file, existance_species=[], nonexistance_species=[]):
 
-        
-        with MongoClient(uri) as client:
+        gat = self.client['hodowla']["Gatunek"]    
+        count = gat.count_documents({"gatunek_lac":file["gatunek_lac"]})
+        gat_id = self.client['hodowla']["Gatunek"]["_id"]
+        if count > 0:
             
-            gat = client[db]["Gatunek"]    
-            count = gat.count_documents({"gatunek_lac":file["gatunek_lac"]})
-            gat_id = client[db]["Gatunek"]["_id"]
-            if count > 0:
+            plec = file['plec']
+            stadium = file['stadium']
                 
-                plec = file['plec']
-                stadium = file['stadium']
-                
-    def _update_stan(self, client, id, file):
+    def _update_stan(self, id, file):
         
         gatunki = []
         
@@ -219,56 +212,53 @@ class OkazAdder(DocsAdder):
         gatunki.append(nazwa_gat)
         
         # Sprawdzić czy już jest stan tego gatunku podany
-        count = client['hodowla']["Stan"].count_documents({"gatunek":id})
+        count = self.client['hodowla']["Stan"].count_documents({"gatunek":id})
     
-        stan_act = StanActualizer(id, count, client, file, 1)
+        stan_act = StanActualizer(id, count, self.client, file, 1)
         stan_act.actualize()
 
         
 class StanAdder(DocsAdder):
     
-    def __init__(self, path, many=False):
+    def __init__(self, path, client):
         
-        collection="Stan"
+        self.client = client
+        collection=self.client['hodowla']["Stan"]
         
-        super().__init__(path, collection, many)  
+        super().__init__(path, collection)  
     
-    def add_to_db(self, db='hodowla', uri="mongodb://localhost:27017/"):
+    def add_to_db(self):
         
         juz_istnieja = {}
+        to_pop = []
+        added_names = []
+        nonexistance_gat = []
         
-        with MongoClient(uri) as client:
+        for i in range(len(self.files)):
             
-            col = client[db][self.collection]
-            to_pop = []
-            added_names = []
-            nonexistance_gat = []
+            name = self.files[i]["gatunek"]
+            gat = self.client["hodowla"]['Gatunki']
             
-            for i in range(len(self.files)):
+            count_gat = gat.count_documents({"$or":[{"gatunek_lac":name}, {"gatunek_pl":name}]})
+            
+            if count_gat != 0:
                 
-                name = self.files[i]["gatunek"]
-                gat = client[db]['Gatunki']
+                gatunek_id = gat.find_one({"$or":[{"gatunek_lac":name}, {"gatunek_pl":name}]})['_id']
+                count = self.collection.count_documents({"gatunek":gatunek_id})
                 
-                count_gat = gat.count_documents({"$or":[{"gatunek_lac":name}, {"gatunek_pl":name}]})
+                self.files[i]["gatunek"] = gatunek_id
                 
-                if count_gat != 0:
+                if (count > 0) or name in added_names:
                     
-                    gatunek_id = gat.find_one({"$or":[{"gatunek_lac":name}, {"gatunek_pl":name}]})['_id']
-                    count = col.count_documents({"gatunek":gatunek_id})
+                    juz_istnieja[self.files[i]["gatunek"]] = self.files[i] 
+                    to_pop.append(i)
+                    self._move_file(self.filenames[i])
                     
-                    self.files[i]["gatunek"] = gatunek_id
-                    
-                    if (count > 0) or name in added_names:
-                        
-                        juz_istnieja[self.files[i]["gatunek"]] = self.files[i] 
-                        to_pop.append(i)
-                        self._move_file(self.filenames[i])
-                        
-                    added_names.append(name)
+                added_names.append(name)
+            
+            else:
                 
-                else:
-                    
-                    nonexistance_gat.append(name)
+                nonexistance_gat.append(name)
                     
             for i in range(len(to_pop)):
                 
@@ -300,7 +290,7 @@ class StanAdder(DocsAdder):
                 
         if len(self.files) > 0:
                 
-            return super().add_to_db(db, uri)
+            return super().add_to_db()
                 
                 
 class StanActualizer():
@@ -314,24 +304,25 @@ class StanActualizer():
         self.quantity = quantity
         self.plec = file['płeć']
         self.stadium = file['stadium']
-        self._actualization() # Być może ta funkcja nie powinna być wywoływana w tym miejscu, a raczej być publiczną i zostać wywaołana po utworzeniu isntacji klasy
         
     def actualize(self):
         
-                            
-        stan = self.client['hodowla']["Stan"]  
-        
-        if self.count > 0:
-            
-            print("Dodać aktualizację stanu")
-            self._actualization()
-            
-        else:
-
-            values = self._create_vals()
-            st = Stan(values)
-            self.client['hodowla']['Stan'].insert_one(st.pola)
+        try:
+            if self.count > 0:
                 
+                print("Dodać aktualizację stanu")
+                self._actualization()
+                
+            else:
+
+                values = self._create_vals()
+                st = Stan(values)
+                self.client['hodowla']['Stan'].insert_one(st.pola)
+        except:
+            
+            
+            logger.error(f"Problem z aktualizacją stanu")
+            
     def _create_vals(self):
         
         match self.plec:
@@ -368,6 +359,7 @@ class StanActualizer():
                 for k in act_dict[i]:
                     
                     good_act_dict['.'.join([i,k])] = act_dict[i][k]
+                    
         id_gat = self.id_gat
         self.client['hodowla']['Stan'].update_one(
             {"gatunek" : id_gat},
