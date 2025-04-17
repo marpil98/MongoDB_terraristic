@@ -44,7 +44,10 @@ def choose_action():
             
             m_log.info("Dodanie dokumentu z palca")
             docs = prepare_new_docs()
-            add_docs_to_db(docs)
+            
+            if docs != 0:
+                
+                add_docs_to_db(docs)
             
         case "5": 
             

@@ -1,3 +1,8 @@
+from nltk.metrics.distance import edit_distance
+
+from DocsAdder import GatunekAdder, OkazAdder, StanAdder
+from documents import Document, Gatunek, Okaz
+
 def prepare_new_docs():
     
     """Preparing new documents, which will added to db
@@ -10,93 +15,97 @@ def prepare_new_docs():
     
     a = input("Czesc, podaj, jaki dokument chcesz dodać (gatunek/okaz): ")
     
-    def _transforming_input(inp):
-        
-        """Helping function which transform input to knowing form, or force the user to 
-        give corect name of collection
+    if a != "q":
+        def _transforming_input(inp):
+            
+            """Helping function which transform input to knowing form, or force the user to 
+            give corect name of collection
 
-        Parameters
-        ----------
-        inp : str
-            Name of collection
+            Parameters
+            ----------
+            inp : str
+                Name of collection
 
-        Returns
-        -------
-        str
-            "Normalized" name
-        """
-        
-        inp = inp.lower().replace('ą','a').replace('ę','e')
-        
-        if inp == 'inne':
+            Returns
+            -------
+            str
+                "Normalized" name
+            """
             
-            inp = 'inny'
+            inp = inp.lower().replace('ą','a').replace('ę','e')
             
-        print(edit_distance(inp, "inny"))
-        
-        if edit_distance(inp, "gatunek")<=2:
+            if inp == 'inne':
+                
+                inp = 'inny'
+                
+            print(edit_distance(inp, "inny"))
+            
+            if edit_distance(inp, "gatunek")<=2:
 
-            inp = "gatunek"
-        
-        elif edit_distance(inp, "okaz")<=2:
+                inp = "gatunek"
+            
+            elif edit_distance(inp, "okaz")<=2:
 
-            inp = "okaz"
-            
-        elif edit_distance(inp, "inny")<=2:
+                inp = "okaz"
+                
+            elif edit_distance(inp, "inny")<=2:
 
-            inp = "inny"
-            
-        else:
-            
-            print("Nie rozpoznano kolekcji.")
-            inp = input("Podaj ją jeszcze raz: ")
-            inp =_transforming_input(inp)
-            
-            
-        return inp   
-    
-    
-    docs = {
-        'G':[],
-        'O':[],
-        'I':[],
-        }
-    run = 1
-    
-    while run == 1:
+                inp = "inny"
+                
+            else:
+                
+                print("Nie rozpoznano kolekcji.")
+                inp = input("Podaj ją jeszcze raz: ")
+                inp =_transforming_input(inp)
+                
+                
+            return inp   
         
-        a = _transforming_input(a)    
         
-        match a:
-            
-            case "gatunek":
-                
-                docs['P'].append(Gatunek().pola)
-                
-            case "okaz":
-                
-                docs['O'].append(Okaz().pola)
-                
-            case "inny":
-                
-                docs['I'].append(Document().pola)
-            
-            case _:
-                
-                print("Nie rozpoznano wartości")
-                
-                pass
-            
-        a = input("Jeśli chcesz dodać kolejny dokument wpisz typ zwierzaka. W przeciwnym razie wpisz 'q': ")
+        docs = {
+            'G':[],
+            'O':[],
+            'I':[],
+            }
+        run = 1
         
-        if a == 'q':
+        while run == 1:
             
-            run = 0
+            a = _transforming_input(a)    
             
-    print("Dokumenty, które zostaną dodane do bazy danych:")
-    pprint(docs)
-    
-    return docs
+            match a:
+                
+                case "gatunek":
+                    
+                    docs['P'].append(Gatunek().pola)
+                    
+                case "okaz":
+                    
+                    docs['O'].append(Okaz().pola)
+                    
+                case "inny":
+                    
+                    docs['I'].append(Document().pola)
+                
+                case _:
+                    
+                    print("Nie rozpoznano wartości")
+                    
+                    pass
+                
+            a = input("Jeśli chcesz dodać kolejny dokument wpisz typ zwierzaka. W przeciwnym razie wpisz 'q': ")
+            
+            if a == 'q':
+                
+                run = 0
+
+        print("Dokumenty, które zostaną dodane do bazy danych:")
+        pprint(docs)
+        
+        return docs
+    else:
+        
+        return 0
    
 def prepare_new_docs_ffile():
     

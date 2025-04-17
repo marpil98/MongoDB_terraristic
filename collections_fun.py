@@ -4,7 +4,6 @@ from pprint import pprint
 import pymongo
 from pymongo import MongoClient
 from pymongo.errors import CollectionInvalid
-from nltk.metrics.distance import edit_distance
 
 import sys
 sys.path.insert(1, "MongoDB_terraristic")
